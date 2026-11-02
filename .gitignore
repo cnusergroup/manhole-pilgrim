@@ -1,0 +1,9 @@
+# Scraped source pages and intermediate files are not redistributed.
+# Re-create them with: python pipeline/scrape.py && python pipeline/parse.py && python pipeline/geocode.py
+/data/
+/scratch/
+__pycache__/
+*.pyc
+.venv/
+*.zip
+.DS_Store

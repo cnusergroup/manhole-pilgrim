@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manhole Pilgrim 蓋めぐり — every Japanese manhole card on one map</title>
+  <meta name="description" content="1,313 collectible manhole cards from Japan's sewer agencies, geocoded with Amazon Location Service. Filter by series, find what you can reach this weekend, and plan a pilgrimage route." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Azeret+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="style.css?v=5" rel="stylesheet" />
+</head>
+<body>
+  <a class="skip" href="#panel">Skip to controls</a>
+
+  <div id="map" role="region" aria-label="Map of manhole card distribution points in Japan"></div>
+
+  <header class="brand">
+    <div class="lid" aria-hidden="true"><span></span></div>
+    <div>
+      <h1>Manhole Pilgrim <span class="jp" lang="ja">蓋めぐり</span></h1>
+      <p class="tag">Japan hid its sewers underground, then printed them as trading cards. Here is where to collect all <b id="total">1,313</b>.</p>
+    </div>
+  </header>
+
+  <aside id="panel" class="panel" aria-label="Explore and plan">
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" aria-controls="tab-explore" id="t-explore">Explore</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-plan" id="t-plan">Plan a trip</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-discover" id="t-discover">Discoveries</button>
+    </nav>
+
+    <!-- EXPLORE -->
+    <section id="tab-explore" role="tabpanel" aria-labelledby="t-explore">
+      <div class="timeline">
+        <div class="tl-head">
+          <label for="series">Series released up to</label>
+          <button id="play" class="btn-ghost" aria-label="Play ten-year timeline">▶ Play 2016→2026</button>
+        </div>
+        <div class="tl-readout"><span class="big" id="series-num">29</span><span class="unit" lang="ja">弾</span><span id="series-date" class="mono">2026/07/31</span></div>
+        <input type="range" id="series" min="1" max="29" value="29" step="1" />
+        <div class="spark" id="spark" aria-hidden="true"></div>
+        <p class="hint"><span class="mono" id="visible-count">1313</span> cards visible · newest series glows</p>
+      </div>
+
+      <fieldset class="chips" id="ptype-chips">
+        <legend>Where you pick them up</legend>
+      </fieldset>
+
+      <div class="row">
+        <label for="pref">Prefecture</label>
+        <select id="pref"><option value="">All of Japan</option></select>
+      </div>
+      <div class="row">
+        <label for="q">Search</label>
+        <input id="q" type="search" placeholder="City, place, card code…" autocomplete="off" />
+      </div>
+      <label class="check"><input type="checkbox" id="hide-ended" /> Hide cards no longer distributed</label>
+    </section>
+
+    <!-- PLAN -->
+    <section id="tab-plan" role="tabpanel" aria-labelledby="t-plan" hidden>
+      <p class="lead">How many cards can you collect from where you are? Pick a start, pick a time budget.</p>
+      <form id="start-form" class="row">
+        <label for="start-q">Start from</label>
+        <div class="inline">
+          <input id="start-q" type="search" placeholder="e.g. 京都駅 or Sapporo Station" autocomplete="off" />
+          <button class="btn" type="submit">Find</button>
+        </div>
+      </form>
+      <p class="hint">…or <button id="pick-on-map" class="link">click anywhere on the map</button>.</p>
+
+      <fieldset class="seg" id="budget">
+        <legend>Driving time</legend>
+        <label><input type="radio" name="budget" value="1800" /> 30 min</label>
+        <label><input type="radio" name="budget" value="3600" checked /> 1 h</label>
+        <label><input type="radio" name="budget" value="7200" /> 2 h</label>
+        <label><input type="radio" name="budget" value="10800" /> 3 h</label>
+      </fieldset>
+
+      <div id="reach" class="reach" aria-live="polite"></div>
+
+      <div class="row">
+        <label for="stops">Cards in route (nearest first)</label>
+        <input type="range" id="stops" min="2" max="10" value="6" />
+        <span class="mono" id="stops-n">6</span>
+      </div>
+      <button id="plan-route" class="btn primary" disabled>Plan optimal pilgrimage route</button>
+      <ol id="itinerary" class="itinerary" aria-live="polite"></ol>
+    </section>
+
+    <!-- DISCOVER -->
+    <section id="tab-discover" role="tabpanel" aria-labelledby="t-discover" hidden>
+      <p class="lead">Things the map revealed that we did not expect.</p>
+      <ul class="insights" id="insights"></ul>
+    </section>
+
+    <footer class="credits">
+      Data: <a href="https://www.gk-p.jp/mhcard/" target="_blank" rel="noopener">GKP 下水道広報プラットホーム</a> (card list &amp; images, linked not copied).
+      Geocoding, basemap, isolines &amp; routing: <b>Amazon Location Service</b>.
+      <a href="https://github.com/cnusergroup/manhole-pilgrim" id="repo-link" target="_blank" rel="noopener">Source</a>
+      <span id="lake" class="lake"></span>
+    </footer>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="config.js?v=5"></script>
+  <script src="app.js?v=5"></script>
+</body>
+</html>

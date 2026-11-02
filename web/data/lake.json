@@ -1,0 +1,10 @@
+{
+ "table": "manhole_pilgrim.cards",
+ "format": "Apache Iceberg (Parquet, zstd) on Amazon S3, queried with Amazon Athena",
+ "rows": 1313,
+ "snapshots": 31,
+ "latest": {
+  "committed_at": "2026-11-02 04:22:28.996 UTC",
+  "snapshot_id": "7300024186364291688"
+ }
+}
