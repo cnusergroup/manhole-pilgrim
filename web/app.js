@@ -330,7 +330,7 @@
     el.setAttribute("aria-label", "Trip start");
     originMarker = new maplibregl.Marker({ element: el }).setLngLat(pos).addTo(map);
     clearRoute();
-    runIsoline();
+    return runIsoline();
   }
 
   async function runIsoline() {
@@ -537,7 +537,16 @@
         go: () => { resetFilters(); S.ptypes = new Set(["roadside"]); syncChips(); render(); fitTo(road, 6); } },
     ].filter(Boolean);
 
+    S.insights = items;
     $("#insights").innerHTML = items.map((it, i) => `<li><button type="button" data-i="${i}"><span class="k">${esc(it.k)}</span>${esc(it.t)}<small>→ ${esc(it.s)}</small></button></li>`).join("");
     $("#insights").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { popup?.remove(); items[+b.dataset.i].go(); }));
+    window.dispatchEvent(new Event("mp:ready"));
   }
+
+  // 供 demo.js（?demo=1 自动演示）调用的最小接口
+  window.MP = {
+    S, map, PTYPES, render, selectTab, syncChips, fitTo, resetFilters, startPlay, stopPlay,
+    setOrigin, planRoute, openPopup: (fs) => openPopup(fs), closePopup: () => popup?.remove(),
+    visible,
+  };
 })();

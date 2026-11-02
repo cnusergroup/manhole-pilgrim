@@ -2,6 +2,7 @@
 # Re-create them with: python pipeline/scrape.py && python pipeline/parse.py && python pipeline/geocode.py
 /data/
 /scratch/
+/video/
 __pycache__/
 *.pyc
 .venv/
