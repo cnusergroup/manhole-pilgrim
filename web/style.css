@@ -158,6 +158,7 @@ input[type="range"] { width: 100%; accent-color: var(--shu); }
 .pop .img img { height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 6px 18px #000a; }
 .pop .body { padding: 12px 14px 14px; }
 .pop h3 { margin: 0; font: 800 19px var(--display); }
+.pop h3 .en { font: 500 13px var(--body); color: var(--muted); margin-left: 4px; }
 .pop .meta { font: 11px var(--mono); color: var(--muted); margin: 3px 0 8px; }
 .pop .meta b { color: var(--shu); }
 .pop .place { font-size: 13px; line-height: 1.5; }

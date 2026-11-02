@@ -101,8 +101,10 @@ Resources:
 
           def prep(op, b):  # validate and build the request server-side; the client controls only a few fields
               if op == "search-text":
-                  return P.search_text, dict(QueryText=str(b["QueryText"])[:80], BiasPosition=pos(b["BiasPosition"]),
-                                             Filter={"IncludeCountries": ["JPN"]}, Language="ja", MaxResults=1)
+                  q = str(b["QueryText"])[:80]
+                  return P.search_text, dict(QueryText=q, BiasPosition=pos(b["BiasPosition"]),
+                                             Filter={"IncludeCountries": ["JPN"]}, MaxResults=1,
+                                             Language="en" if q.isascii() else "ja")  # answer in the user's script
               if op == "isolines":
                   t = int(b["Thresholds"]["Time"][0])
                   if t not in (1800, 3600, 7200, 10800):

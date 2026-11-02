@@ -36,6 +36,8 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const fmtInt = (n) => n.toLocaleString("en-US");
+  // 搜索归一化：小写、去掉长音符号（Ōsaka→osaka）、去掉空格和连字符（Sapporo-shi→napporoshi 可被 "sapporo" 命中）
+  const norm = (s) => String(s ?? "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s\-‐ー・]/g, "");
   const toast = (msg, ms = 3200) => {
     const t = $("#toast"); t.textContent = msg; t.classList.add("show");
     clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), ms);
@@ -89,6 +91,14 @@
   map.on("load", async () => {
     const gj = await fetch(`data/cards.geojson?v=${encodeURIComponent(CFG.dataVersion || "")}`).then((r) => r.json());
     S.all = gj.features;
+    // 英文名（Amazon Location Places Geocode, Language=en，由 pipeline/names_en.py 生成）
+    const en = await fetch(`data/names_en.json?v=${encodeURIComponent(CFG.dataVersion || "")}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    for (const f of S.all) {
+      const p = f.properties;
+      p.pref_en = en?.pref[p.pref] || "";
+      p.muni_en = en?.muni[`${p.pref}|${p.muni}`] || "";
+      p.hay = norm(`${p.pref} ${p.muni} ${p.pref_en} ${p.muni_en} ${p.place} ${p.address} ${p.code} ${p.id}`);
+    }
     for (const f of S.all) {
       const p = f.properties;
       if (p.series && (!S.seriesDate[p.series] || p.issued < S.seriesDate[p.series])) S.seriesDate[p.series] = p.issued;
@@ -150,10 +160,7 @@
     if (!S.ptypes.has(p.ptype)) return false;
     if (S.pref && p.pref !== S.pref) return false;
     if (S.hideEnded && p.ended) return false;
-    if (S.q) {
-      const hay = `${p.pref} ${p.muni} ${p.place} ${p.address} ${p.code} ${p.id}`.toLowerCase();
-      if (!hay.includes(S.q)) return false;
-    }
+    if (S.q && !p.hay.includes(S.q)) return false;
     return true;
   }
 
@@ -207,14 +214,14 @@
     box.appendChild(hint);
 
     // pref select
-    const prefs = [...new Map(S.all.map((f) => [f.properties.pref_code, f.properties.pref])).entries()].sort();
+    const prefs = [...new Map(S.all.map((f) => [f.properties.pref_code, [f.properties.pref, f.properties.pref_en]])).entries()].sort();
     const pc = {}; S.all.forEach((f) => (pc[f.properties.pref] = (pc[f.properties.pref] || 0) + 1));
-    $("#pref").insertAdjacentHTML("beforeend", prefs.map(([, n]) => `<option value="${esc(n)}">${esc(n)} (${pc[n]})</option>`).join(""));
+    $("#pref").insertAdjacentHTML("beforeend", prefs.map(([, [n, en]]) => `<option value="${esc(n)}">${esc(en ? `${en} ${n}` : n)} (${pc[n]})</option>`).join(""));
     $("#pref").addEventListener("change", (e) => { S.pref = e.target.value; recomputeReach(); render(); if (S.pref) fitTo(visible()); });
 
     let qt;
     $("#q").addEventListener("input", (e) => {
-      clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value.trim().toLowerCase(); recomputeReach(); render(); }, 180);
+      clearTimeout(qt); qt = setTimeout(() => { S.q = norm(e.target.value.trim()); recomputeReach(); render(); }, 180);
     });
     $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") fitTo(visible()); });
     $("#hide-ended").addEventListener("change", (e) => { S.hideEnded = e.target.checked; recomputeReach(); render(); });
@@ -316,8 +323,8 @@
         <div class="img">${window.MP_POPUP_ART ? window.MP_POPUP_ART(p)
           : p.image ? `<img src="${esc(p.image)}" alt="Manhole card design for ${esc(p.muni)}" loading="lazy" referrerpolicy="no-referrer" />` : ""}</div>
         <div class="body">
-          <h3>${esc(p.muni)}${p.ended ? '<span class="badge ended">ENDED</span>' : p.series === S.maxSeries ? '<span class="badge">NEW</span>' : ""}</h3>
-          <div class="meta">${esc(p.pref)} · <b>Series ${p.series}</b> · ${esc(p.issued)} · ${esc(p.code || p.id)}</div>
+          <h3>${esc(p.muni)}${p.muni_en ? ` <span class="en">${esc(p.muni_en)}</span>` : ""}${p.ended ? '<span class="badge ended">ENDED</span>' : p.series === S.maxSeries ? '<span class="badge">NEW</span>' : ""}</h3>
+          <div class="meta">${esc(p.pref_en || p.pref)} · <b>Series ${p.series}</b> · ${esc(p.issued)} · ${esc(p.code || p.id)}</div>
           <div class="place"><span style="color:${pt.color}">●</span> ${esc(p.place || "—")}
             <small>${esc(p.address || "")}${p.precision !== "address" ? ` · located by ${p.precision === "poi" ? "place search" : "city centroid"}` : ""}</small>
             ${p.hours ? `<small>🕘 ${esc(p.hours.slice(0, 140))}</small>` : ""}

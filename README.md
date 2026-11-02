@@ -210,6 +210,7 @@ python pipeline/scrape.py               # caches the 47 source pages in data/raw
 python pipeline/parse.py                # → data/cards.json
 python pipeline/geocode.py              # → data/cards_geo.json; Amazon Location Places, cached in data/geocode_cache.json
 python pipeline/build_geojson.py        # → data/cards_enriched.jsonl (+ web/data/cards.geojson)
+python pipeline/names_en.py             # → web/data/names_en.json: English prefecture/town names (Places Geocode, Language=en) for search
 python pipeline/lakehouse.py --backfill # creates bucket manhole-pilgrim-lake-<account-id>, Glue DB + Iceberg table,
                                         #   one MERGE commit per series, then exports web/data/cards.geojson + lake.json
 python pipeline/time_travel.py          # optional: prints the card count at a few snapshots

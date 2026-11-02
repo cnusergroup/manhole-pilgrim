@@ -1,4 +1,4 @@
-// apiKey: Amazon Location browser key for MAP TILES ONLY (geo-maps:GetTile), referer-restricted, expires 2026-12-31.
+﻿// apiKey: Amazon Location browser key for MAP TILES ONLY (geo-maps:GetTile), referer-restricted, expires 2026-12-31.
 //         It is public by design (every visitor's browser receives it) and cannot call Places or Routes.
 // proxyUrl: API Gateway + Lambda (infra/proxy.yaml) for place search, isolines and routing. The proxy holds the
 //         IAM permissions, validates input, rate-limits, and enforces a hard daily cap per operation.
@@ -9,5 +9,5 @@ window.MP_CONFIG = {
   proxyUrl: "https://lbhaxekem4.execute-api.ap-northeast-1.amazonaws.com",
   mapStyle: "Monochrome",
   colorScheme: "Dark",
-  dataVersion: "2026-11-02b", // bump after regenerating data to bypass CDN / browser caches
+  dataVersion: "2026-11-02c", // bump after regenerating data to bypass CDN / browser caches
 };
