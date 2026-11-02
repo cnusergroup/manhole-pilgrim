@@ -1,4 +1,4 @@
-# Manhole Pilgrim: mapping all 1,313 Japanese manhole cards with Amazon Location Service and Apache Iceberg on S3
+﻿# Manhole Pilgrim: mapping all 1,313 Japanese manhole cards with Amazon Location Service and Apache Iceberg on S3
 
 **Japan hid its sewers underground, then printed them as trading cards. I put all 1,313 on one map, so a traveller can see how many they can collect this weekend and get a route.**
 
@@ -6,7 +6,9 @@
 - 🎬 **Demo video (2:33):** _YOUTUBE_LINK_
 - 💻 **Code (MIT):** https://github.com/cnusergroup/manhole-pilgrim
 
-![Manhole Pilgrim: all 1,313 manhole cards across Japan, colour-coded by the kind of place that hands them out](IMAGE_overview.png)
+![Manhole Pilgrim: all 1,313 manhole cards across Japan, colour-coded by the kind of place that hands them out](article/03-overview.png)
+
+![Original illustrations of manhole cards (real card names, series and coordinates; artwork drawn for this project)](article/01-hero.jpg)
 
 ## Why manhole cards
 
@@ -61,7 +63,7 @@ The registry changes over time. New series come out every few months, cards stop
 - **Routes `OptimizeWaypoints`** puts the nearest cards into an optimal loop with arrival times. Some start points, like the inside of Sapporo Station, can't be driven back to. For those, the app falls back to **`CalculateRouteMatrix`** with a client-side 2-opt, and plans a one-way trip on real drive times.
 - **Routes `CalculateRoutes`** draws the road-following line.
 
-![Kyoto Station: 1-hour drive area, ~100 cards inside, and a 6-card optimized loop with arrival times](IMAGE_route.png)
+![Kyoto Station: 1-hour drive area, ~100 cards inside, and a 6-card optimized loop with arrival times](article/04-route.png)
 
 ## What people can explore
 
@@ -77,7 +79,7 @@ The registry changes over time. New series come out every few months, cards stop
 
 ## Architecture
 
-![Architecture: GKP registry → Amazon Location Places → Iceberg on S3 via Athena → Amplify static site → browser; tiles via a tiles-only key, paid calls via API Gateway + Lambda](IMAGE_architecture.png)
+![Architecture: GKP registry → Amazon Location Places → Iceberg on S3 via Athena → Amplify static site → browser; tiles via a tiles-only key, paid calls via API Gateway + Lambda](article/05-architecture.jpg)
 
 | AWS service | Role |
 |---|---|

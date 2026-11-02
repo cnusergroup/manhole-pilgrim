@@ -72,7 +72,7 @@ A public map has to work for anonymous visitors. Anything the browser holds, any
 | **Proxy for every paid call** (`infra/proxy.yaml`) | Place search, isolines, waypoint optimization, route matrix and routes go through **API Gateway (HTTP API) → AWS Lambda**. The Lambda IAM role holds the only permission to call those APIs. |
 | **Server-built requests** | The Lambda builds each Amazon Location request itself. It accepts only coordinates inside Japan, drive times of 30/60/120/180 min, and at most 10 waypoints (11×11 matrix). Every other field is fixed server-side. |
 | **Rate limit** | API Gateway allows 5 requests/s with a burst of 10, across all clients. |
-| **Hard daily cap per operation** | A DynamoDB atomic counter rejects calls past the cap with HTTP 429. Defaults: search 1,000 · isolines 500 · optimize 300 · routes 600 · matrix 200 per UTC day. This bounds the worst-case daily bill no matter who calls. |
+| **Hard daily cap per operation** | A DynamoDB atomic counter rejects calls past the cap with HTTP 429. Defaults per UTC day: search 1,500 · isolines 1,000 · optimize 600 · routes 1,000 calls, and matrix 2,000 routes. Matrix is counted per route because that is how it is billed. This bounds the worst-case daily bill no matter who calls. |
 
 On top of that, `scripts/create_budget.py --email you@example.com --usd 20` creates a monthly AWS Budget scoped to this project's services. It emails at 50 % and 100 % of actual spend, and at 100 % of forecast.
 
@@ -250,7 +250,7 @@ docs/       screenshots
 
 ## Data, licensing, and limitations
 
-- Card listings come from the official GKP registry. **Card images are not copied into this repo.** The live popup displays them from the official server and links back to the official page, and card art is blurred in the README screenshots. All card designs are © their issuing municipalities and GKP.
+- Card listings come from the official GKP registry. **Card images are not copied into this repo.** The live popup displays them from the official server and links back to the official page, card art is blurred in the README screenshots, and the demo video (`?demo=1`) uses original illustrations instead of card art. All card designs are © their issuing municipalities and GKP.
 - `web/data/cards.geojson` holds factual listing data (place names, public addresses, opening hours, and links to the official images), plus coordinates we computed. It contains no personal data.
 - The Amazon Location API key in `web/config.js` is a public, **tiles-only** browser key with a referer restriction and an expiry. See [Keeping a public map safe](#keeping-a-public-map-safe-to-leave-online). An earlier key with broader permissions appears in git history. It has been **deleted** in AWS and no longer works. Use your own key for your own deployment.
 - Raw scraped pages and intermediate files are not committed (`.gitignore`). Re-create them with the pipeline.
