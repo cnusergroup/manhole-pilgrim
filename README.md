@@ -80,6 +80,8 @@ A visitor's request costs one Lambda call, about 100–200 ms more than calling 
 
 ## Architecture
 
+![How Manhole Pilgrim works (cartoon architecture)](docs/article/05-architecture-cartoon.png)
+
 ```mermaid
 flowchart LR
   GKP["gk-p.jp/mhcard<br/>47 prefecture pages"] -->|scrape.py<br/>1.5 s polite delay| RAW[(raw HTML cache)]

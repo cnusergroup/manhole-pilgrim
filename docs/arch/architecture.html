@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Manhole Pilgrim: how it works (cartoon architecture)</title>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Shippori+Mincho+B1:wght@800&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; background: #f6efe1; }
+  svg { display: block; }
+  .t { font: 25px "Patrick Hand", cursive; fill: #2b2b2b; text-anchor: middle; }
+  .s { font: 18px "Patrick Hand", cursive; fill: #4a4a4a; text-anchor: middle; }
+  .lane { font: 26px "Patrick Hand", cursive; fill: #2b2b2b; }
+  .lab { font: 20px "Patrick Hand", cursive; fill: #2b2b2b; stroke: #fffaf0; stroke-width: 7px; stroke-linejoin: round; paint-order: stroke; }
+  .title { font: 800 54px "Shippori Mincho B1", serif; fill: #2b2b2b; }
+  .sub { font: 26px "Patrick Hand", cursive; fill: #6b6357; }
+  .note { font: 22px "Patrick Hand", cursive; fill: #2b2b2b; }
+</style>
+</head>
+<body>
+<svg id="art" xmlns="http://www.w3.org/2000/svg" width="1600" height="1100" viewBox="0 0 1600 1100"></svg>
+<script>
+const INK = "#2b2b2b";
+const W = 210, H = 220;
+
+// ---------- hand-drawn icons (all original, centred on 0,0, about 90px) ----------
+const ICON = {
+  pages: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <rect x="-36" y="-40" width="60" height="76" rx="6" fill="#fff" transform="rotate(-13)"/>
+      <rect x="-30" y="-42" width="60" height="76" rx="6" fill="#fff" transform="rotate(-3)"/>
+      <g transform="rotate(8)"><rect x="-24" y="-42" width="60" height="76" rx="6" fill="#fffdf6"/>
+        <path d="M-14 -26h40M-14 -14h40M-14 -2h32M-14 10h40M-14 22h24" stroke-width="3" stroke-linecap="round"/></g>
+      <circle cx="30" cy="30" r="13" fill="#e8502d"/><path d="M24 30h12" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/></g>`,
+  robot: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M0 -44v-10" stroke-linecap="round"/><circle cx="0" cy="-56" r="6" fill="#e8502d"/>
+      <rect x="-34" y="-44" width="68" height="54" rx="14" fill="#bfe3f2"/>
+      <circle cx="-13" cy="-18" r="7" fill="#fff"/><circle cx="13" cy="-18" r="7" fill="#fff"/>
+      <circle cx="-12" cy="-17" r="3" fill="${INK}"/><circle cx="14" cy="-17" r="3" fill="${INK}"/>
+      <path d="M-10 -2q10 8 20 0" fill="none" stroke-linecap="round"/>
+      <rect x="-26" y="14" width="52" height="30" rx="10" fill="#bfe3f2"/>
+      <path d="M-26 26h-14M26 26h14" stroke-linecap="round"/>
+      <rect x="-8" y="20" width="16" height="16" rx="3" fill="#fff"/></g>`,
+  places: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-8 -48C18 -48 28 -24 20 -8L-8 38L-36 -8C-44 -24 -34 -48 -8 -48Z" fill="#e8502d"/>
+      <circle cx="-8" cy="-20" r="11" fill="#fff"/>
+      <circle cx="22" cy="18" r="17" fill="#e9f6fb"/><path d="M34 30l14 14" stroke-width="7" stroke-linecap="round"/></g>`,
+  iceberg: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-46 -4L46 -4L36 44L-36 44Z" fill="#8fd0ea"/>
+      <path d="M-30 -4L-16 -40L-2 -26L14 -50L32 -4Z" fill="#fff"/>
+      <path d="M14 -50L6 -20L-2 -26" fill="none" stroke-width="2.5"/>
+      <path d="M-38 10h76M-36 22h72M-34 34h68" stroke="#fff" stroke-width="3" stroke-dasharray="7 6"/>
+      <path d="M-46 -4q46 -12 92 0" fill="none"/></g>`,
+  cloud: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-44 22a20 20 0 0 1 4-38a26 26 0 0 1 48-10a22 22 0 0 1 36 18a18 18 0 0 1-6 30Z" fill="#fff"/>
+      <circle cx="0" cy="8" r="16" fill="#c7e59a"/><path d="M-16 8h32M0 -8c-9 9-9 23 0 32M0 -8c9 9 9 23 0 32" fill="none" stroke-width="2.5"/>
+      <path d="M30 -36l4 8l8 2l-8 3l-4 8l-3-8l-8-3l8-2Z" fill="#f5c542" stroke-width="2.5"/></g>`,
+  laptop: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <rect x="-44" y="-42" width="88" height="60" rx="8" fill="#2f3438"/>
+      <circle cx="-22" cy="-22" r="4" fill="#e8502d" stroke="none"/><circle cx="-6" cy="-10" r="4" fill="#f5c542" stroke="none"/>
+      <circle cx="12" cy="-26" r="4" fill="#9ccc65" stroke="none"/><circle cx="24" cy="-6" r="4" fill="#64b5f6" stroke="none"/>
+      <path d="M-22 -22L-6 -10L12 -26L24 -6" fill="none" stroke="#d9a441" stroke-width="2.5" stroke-dasharray="4 4"/>
+      <path d="M-54 18h108l-8 16h-92Z" fill="#d9d2c3"/></g>`,
+  key: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <rect x="-48" y="-40" width="96" height="62" rx="8" fill="#dff1d0"/>
+      <path d="M-48 -9h96M-16 -40v62M16 -40v62" stroke-width="2.5"/>
+      <circle cx="-14" cy="34" r="12" fill="#f5c542"/><path d="M-2 34h40v10M26 34v8" fill="none" stroke-linecap="round"/>
+      <circle cx="-14" cy="34" r="4" fill="#f6efe1"/></g>`,
+  torii: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-52 -40q52 -14 104 0l-4 10q-48 -10 -96 0Z" fill="#e8502d"/>
+      <rect x="-42" y="-22" width="84" height="9" fill="#e8502d"/>
+      <rect x="-34" y="-30" width="11" height="74" fill="#e8502d"/><rect x="23" y="-30" width="11" height="74" fill="#e8502d"/>
+      <rect x="-14" y="-4" width="28" height="20" rx="3" fill="#fff"/>
+      <text x="0" y="11" style="font:16px 'Patrick Hand';text-anchor:middle" stroke="none" fill="${INK}">5/s</text></g>`,
+  lambda: `<g stroke="${INK}" stroke-width="3.5">
+      <circle r="42" fill="#f5c542"/>
+      <path d="M-14 -24h10l22 48M-2 0l-14 24" fill="none" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="-22" cy="-6" r="4" fill="${INK}" stroke="none"/><circle cx="24" cy="-6" r="4" fill="${INK}" stroke="none"/>
+      <path d="M-30 -42q30 -22 60 0" fill="#fff"/></g>`,
+  counter: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <rect x="-48" y="-36" width="96" height="58" rx="10" fill="#c9b8ef"/>
+      <rect x="-38" y="-26" width="76" height="30" rx="5" fill="#2f3438"/>
+      <text x="0" y="-4" style="font:22px 'Patrick Hand';text-anchor:middle" stroke="none" fill="#9ccc65">742/1000</text>
+      <circle cx="-22" cy="13" r="4" fill="#fff" stroke-width="2"/><circle cx="0" cy="13" r="4" fill="#fff" stroke-width="2"/><circle cx="22" cy="13" r="4" fill="#e8502d" stroke-width="2"/>
+      <path d="M-30 22l-8 18M30 22l8 18" stroke-linecap="round"/></g>`,
+  routes: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-50 36C-20 30 -40 -8 -6 -10S40 -30 50 -40" fill="none" stroke="#6b6357" stroke-width="18" stroke-linecap="round"/>
+      <path d="M-50 36C-20 30 -40 -8 -6 -10S40 -30 50 -40" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="8 7"/>
+      <circle cx="-42" cy="34" r="8" fill="#e8502d"/><circle cx="-6" cy="-10" r="8" fill="#f5c542"/><circle cx="44" cy="-38" r="8" fill="#9ccc65"/>
+      <path d="M-10 -40C-2 -40 2 -34 -2 -28L-10 -18L-18 -28C-22 -34 -18 -40 -10 -40Z" fill="#e8502d" stroke-width="2.5"/></g>`,
+  parrot: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <path d="M-8 44q-6-12 0-20" fill="none" stroke-linecap="round"/>
+      <ellipse cx="-6" cy="4" rx="24" ry="32" fill="#7ccf8a"/>
+      <circle cx="-4" cy="-28" r="18" fill="#7ccf8a"/>
+      <path d="M12 -32q14 4 10 16q-6 -6 -12 -6Z" fill="#f5a142"/>
+      <circle cx="0" cy="-32" r="4" fill="${INK}" stroke="none"/>
+      <path d="M-26 0q-10 18 6 30q10-14 4-30Z" fill="#4fae66"/>
+      <path d="M22 -52h28a8 8 0 0 1 8 8v12a8 8 0 0 1-8 8h-16l-8 8v-8a8 8 0 0 1-4-8Z" fill="#fff" stroke-width="2.5"/>
+      <text x="38" y="-31" style="font:20px 'Patrick Hand';text-anchor:middle" stroke="none" fill="${INK}">hi!</text></g>`,
+  piggy: `<g stroke="${INK}" stroke-width="3.5" stroke-linejoin="round">
+      <ellipse cx="0" cy="6" rx="42" ry="30" fill="#f7b6c8"/>
+      <path d="M-18 -20l-6 -14l14 8" fill="#f7b6c8"/>
+      <ellipse cx="38" cy="8" rx="10" ry="12" fill="#f39ab2"/><circle cx="36" cy="5" r="2" fill="${INK}" stroke="none"/><circle cx="40" cy="11" r="2" fill="${INK}" stroke="none"/>
+      <circle cx="16" cy="-6" r="4" fill="${INK}" stroke="none"/>
+      <path d="M-10 -22h22" stroke-width="5" stroke-linecap="round"/>
+      <path d="M-24 34v10M18 34v10" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="-34" cy="-30" r="12" fill="#f5c542"/><text x="-34" y="-23" style="font:20px 'Patrick Hand';text-anchor:middle" stroke="none" fill="${INK}">!</text></g>`,
+};
+
+// ---------- building blocks ----------
+function card(id, x, y, fill, icon, title, lines) {
+  const tl = [].concat(title);
+  const ty = tl.length > 1 ? 124 : 132;
+  return `<g id="${id}" transform="translate(${x - W / 2},${y - H / 2})">
+    <rect x="7" y="9" width="${W}" height="${H}" rx="28" fill="${INK}"/>
+    <rect width="${W}" height="${H}" rx="28" fill="${fill}" stroke="${INK}" stroke-width="4" filter="url(#wob)"/>
+    <g transform="translate(${W / 2},58) scale(.86)" filter="url(#wob)">${ICON[icon]}</g>
+    ${tl.map((t, i) => `<text class="t" x="${W / 2}" y="${ty + i * 25}">${t}</text>`).join("")}
+    ${lines.map((t, i) => `<text class="s" x="${W / 2}" y="${ty + tl.length * 25 + 6 + i * 22}">${t}</text>`).join("")}
+  </g>`;
+}
+function arrow(d, label, lx, ly, anchor = "middle", dashed = false) {
+  return `<path d="${d}" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round" ${dashed ? 'stroke-dasharray="10 9"' : ""} marker-end="url(#head)" filter="url(#wob)"/>
+    ${label ? [].concat(label).map((t, i) => `<text class="lab" x="${lx}" y="${ly + i * 21}" text-anchor="${anchor}">${t}</text>`).join("") : ""}`;
+}
+const lid = (x, y, r) => `<g transform="translate(${x},${y})" filter="url(#wob)">
+    <circle r="${r}" fill="#6d737a" stroke="${INK}" stroke-width="4"/>
+    <circle r="${r * .78}" fill="#e8502d" stroke="${INK}" stroke-width="3"/>
+    <path d="M${-r * .5} ${-r * .1}h${r}M${-r * .5} ${r * .25}h${r}M${-r * .25} ${-r * .5}v${r}M${r * .25} ${-r * .5}v${r}" stroke="#f6c3b4" stroke-width="3"/>
+    <circle cx="${-r * .28}" cy="${-r * .28}" r="${r * .1}" fill="${INK}"/><circle cx="${r * .28}" cy="${-r * .28}" r="${r * .1}" fill="${INK}"/>
+    <path d="M${-r * .3} ${r * .42}q${r * .3} ${r * .26} ${r * .6} 0" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></g>`;
+
+// ---------- layout ----------
+const TOP = 300, A = 680, B = 950, BR = (A + B) / 2;
+const X = [150, 440, 730, 1020, 1360];
+const svg = `
+<defs>
+  <filter id="wob" filterUnits="userSpaceOnUse" x="-2000" y="-2000" width="6000" height="6000">
+    <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7"/>
+    <feDisplacementMap in="SourceGraphic" scale="4"/>
+  </filter>
+  <marker id="head" viewBox="0 0 12 12" refX="9" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+    <path d="M1 1L11 6L1 11Q4 6 1 1Z" fill="${INK}"/>
+  </marker>
+  <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.6" fill="#e3d8c2"/></pattern>
+</defs>
+<rect width="1600" height="1100" fill="#f6efe1"/><rect width="1600" height="1100" fill="url(#dots)"/>
+
+${lid(70, 72, 38)}
+<text class="title" x="128" y="92">How Manhole Pilgrim works</text>
+<text class="sub" x="1560" y="88" text-anchor="end">serverless end to end · no servers to babysit</text>
+
+<rect x="22" y="138" width="1556" height="318" rx="30" fill="#fffaf0" stroke="#d8ccb4" stroke-width="3" stroke-dasharray="12 10"/>
+<text class="lane" x="48" y="174">① Build the dataset — once, then a MERGE for each new card series</text>
+<rect x="22" y="482" width="1556" height="600" rx="30" fill="#fffaf0" stroke="#d8ccb4" stroke-width="3" stroke-dasharray="12 10"/>
+<text class="lane" x="48" y="518">② A traveller explores the map</text>
+<text class="lab" x="${X[0]}" y="558" text-anchor="middle">also on board</text>
+
+${card("gkp", X[0], TOP, "#fff3d6", "pages", "GKP registry", ["47 pages of addresses", "no coordinates"])}
+${card("scrape", X[1], TOP, "#e3f2f8", "robot", "Python scraper", ["polite: 1.5 s per page", "1,313 cards parsed"])}
+${card("places", X[2], TOP, "#ffe1d6", "places", ["Amazon Location", "Places"], ["Geocode + SearchText", "1,304 / 1,313 placed"])}
+${card("ice", X[3], TOP, "#dcf1fa", "iceberg", ["Apache Iceberg", "on Amazon S3"], ["Athena MERGE INTO", "1 snapshot per series"])}
+${card("amp", X[4], TOP, "#e9f5dc", "cloud", ["AWS Amplify", "Hosting"], ["static site + GeoJSON", "on the CloudFront CDN"])}
+
+${arrow(`M${X[0] + 108} ${TOP}L${X[1] - 116} ${TOP}`)}
+${arrow(`M${X[1] + 108} ${TOP}L${X[2] - 116} ${TOP}`)}
+${arrow(`M${X[2] + 108} ${TOP}L${X[3] - 116} ${TOP}`)}
+${arrow(`M${X[3] + 108} ${TOP}L${X[4] - 116} ${TOP}`, ["export", "GeoJSON"], (X[3] + X[4]) / 2, TOP - 30)}
+
+${card("browser", X[4], BR, "#fff", "laptop", "Your browser", ["MapLibre map", "filter · timeline · plan"])}
+${arrow(`M${X[4]} ${TOP + 118}L${X[4]} ${BR - 120}`, ["serves the site"], X[4] + 16, 600, "start")}
+
+${card("maps", X[3], A, "#e6f4d9", "key", ["Amazon Location", "Maps"], ["basemap tiles", "key: GetTile only"])}
+${card("gate", X[3], B, "#ffe3dc", "torii", "API Gateway", ["5 req/s, burst 10", "CORS: this site only"])}
+${card("lambda", X[2], B, "#fff2c9", "lambda", "AWS Lambda", ["Japan-only coordinates", "builds every request"])}
+${card("ddb", X[2], A, "#ece4fb", "counter", "Amazon DynamoDB", ["daily cap per call", "over the cap → 429"])}
+${card("routes", X[1], B, "#ffe1d6", "routes", ["Amazon Location", "Places + Routes"], ["Isolines · Optimize", "Matrix · Routes"])}
+${card("polly", X[0], A, "#e3f5e6", "parrot", "Amazon Polly", ["voices the", "demo video"])}
+${card("budget", X[0], B, "#fde6ee", "piggy", "AWS Budgets", ["$20 / month alert", "the last backstop"])}
+
+${arrow(`M${X[4] - 108} ${BR - 50}Q1190 ${A + 10} ${X[3] + 116} ${A}`, ["tiles-only", "browser key"], 1190, A - 52)}
+${arrow(`M${X[4] - 108} ${BR + 50}Q1190 ${B - 10} ${X[3] + 116} ${B}`, ["search · drive", "area · routes"], 1190, B + 42)}
+${arrow(`M${X[3] - 108} ${B}L${X[2] + 116} ${B}`)}
+${arrow(`M${X[2]} ${B - 112}L${X[2]} ${A + 118}`, ["counts first"], X[2] + 16, BR + 7, "start")}
+${arrow(`M${X[2] - 108} ${B}L${X[1] + 116} ${B}`, ["IAM role", "only"], (X[1] + X[2]) / 2, B - 40)}
+
+<g transform="translate(${X[1]},${A - 4}) rotate(-3)" filter="url(#wob)">
+  <rect x="-108" y="-78" width="216" height="156" fill="#fff59a" stroke="${INK}" stroke-width="3.5"/>
+  <path d="M-108 -78h216v22h-216Z" fill="#f5e46e" stroke="${INK}" stroke-width="3.5"/>
+</g>
+<g transform="translate(${X[1]},${A - 4}) rotate(-3)">
+  <text class="note" x="0" y="-22" text-anchor="middle">Paid calls never</text>
+  <text class="note" x="0" y="6" text-anchor="middle">touch the browser key.</text>
+  <text class="note" x="0" y="40" text-anchor="middle">Worst day ≈ $7, capped.</text>
+</g>
+`;
+document.getElementById("art").innerHTML = svg;
+document.fonts.ready.then(() => (window.__artReady = true));
+</script>
+</body>
+</html>

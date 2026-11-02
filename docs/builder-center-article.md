@@ -114,7 +114,7 @@ The registry changes: new series every few months, cards that run out, counters 
 
 ## Architecture: built to stay online safely
 
-![Architecture: GKP registry → Amazon Location Places → Iceberg on S3 via Athena → Amplify static site → browser; tiles via a tiles-only key, paid calls via API Gateway + Lambda](article/05-architecture.jpg)
+![Architecture: GKP registry → Amazon Location Places → Iceberg on S3 via Athena → Amplify static site → browser; tiles via a tiles-only key, paid calls via API Gateway + Lambda](article/05-architecture-cartoon.png)
 
 | AWS service | Role |
 |---|---|
