@@ -1,0 +1,75 @@
+1
+00:00:01,000 --> 00:00:07,432
+Japan has fifteen million manhole covers. Thousands are works of art, cast in iron by the town they belong to.
+
+2
+00:00:07,882 --> 00:00:15,250
+Since 2016, sewer agencies have turned them into free manhole cards, each with the cover, its coordinates, and its story.
+
+3
+00:00:15,700 --> 00:00:22,228
+One rule: you can't buy them or order them online. You walk up to one specific counter, in one town, and ask.
+
+4
+00:00:22,678 --> 00:00:30,934
+That makes them perfect for travellers: a free souvenir, and a reason to step off the tourist trail. Many counters are tourist offices you'd pass anyway.
+
+5
+00:00:31,384 --> 00:00:36,952
+But the official list is forty-seven pages of Japanese addresses, with no map. So we built one.
+
+6
+00:00:37,402 --> 00:00:41,122
+Manhole Pilgrim. Every card in Japan, on one map.
+
+7
+00:00:41,572 --> 00:00:49,708
+We geocoded all thirteen hundred counters with Amazon Location Places: Geocode for addresses, Search Text for places with only a name.
+
+8
+00:00:50,158 --> 00:00:58,318
+Ten years of releases. Series one had thirty cards. Every few months a new series lands, until all forty-seven prefectures are covered.
+
+9
+00:00:58,768 --> 00:01:04,504
+Click any card to see its design, where to pick it up, and the opening hours, with a link to the official page.
+
+10
+00:01:04,954 --> 00:01:13,666
+Filter by where you pick them up. One card in five is only handed out at a sewage or water plant. The cards were built to bring people into infrastructure they never see.
+
+11
+00:01:14,116 --> 00:01:24,292
+Now the traveller's question: I'm in Kyoto this weekend, how many can I collect? Calculate Isolines draws the real one-hour drive area. About a hundred cards fall inside.
+
+12
+00:01:24,742 --> 00:01:32,374
+Optimize Waypoints turns the six nearest into a loop with arrival times. That is an easy afternoon, and six cards you can only get here.
+
+13
+00:01:32,824 --> 00:01:41,272
+Some starts, like the middle of Sapporo Station, can't be driven back to. Then the app falls back to a route matrix and plans a one-way trip on real drive times.
+
+14
+00:01:41,722 --> 00:01:48,370
+The map also surprised us. The loneliest card is on the Ogasawara Islands, nine hundred kilometres from any other.
+
+15
+00:01:48,820 --> 00:01:56,860
+And this Hyogo card can only be collected in Osaka. Our geocoder flagged it as an error. It wasn't. The treatment plant sits across the border.
+
+16
+00:01:57,310 --> 00:02:03,166
+Ninety-eight cards wait at michi-no-eki roadside stations. Manhole cards are a road-trip game.
+
+17
+00:02:03,616 --> 00:02:16,720
+How it works: scrape the registry, geocode with Amazon Location, merge into an Apache Iceberg table on S3 with Athena, and serve a static site on Amplify. Maps and Routes run in the browser, with no backend.
+
+18
+00:02:17,170 --> 00:02:23,242
+Each series is an Iceberg snapshot you can time-travel to. Swap the scraper, and it works for any stamp rally.
+
+19
+00:02:23,692 --> 00:02:26,116
+Manhole Pilgrim. Go find the sewers.

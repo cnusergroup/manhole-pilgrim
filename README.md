@@ -106,6 +106,18 @@ SELECT * FROM "manhole_pilgrim"."cards$snapshots" ORDER BY committed_at DESC LIM
 - **Amazon Athena**: DDL, `MERGE INTO`, time travel, export
 - **AWS Glue Data Catalog**: Iceberg table metadata
 - **AWS Amplify Hosting**: static site on a CloudFront CDN with HTTPS
+- **Amazon Polly** (generative engine): demo video narration
+
+## How the demo video is made
+
+The video is a recording of the live app, not an edit. `?demo=1` runs a scripted tour on the real site with real Amazon Location calls, and the narration drives the timing:
+
+1. `video/narration.json` holds one entry per segment: the spoken text, the on-screen caption, and the scene to show.
+2. `python scripts/make_voice.py` voices each segment with **Amazon Polly** and writes the clip lengths to `web/demo_timing.js`. It also writes `video/narration.srt` and a CapCut (剪映) script.
+3. Open `/?demo=1&wait=1` and start a screen recording, then call `window.__demoGo()`. A white slate cuts to black at t=0.
+4. `python scripts/compose_video.py <recording.mp4>` finds that cut and places each Polly clip at the same offset `demo.js` used. It then loudness-normalizes the audio and refuses to output anything 3 minutes or longer.
+
+To preview the tour with sound in the browser, open `/?demo=1&voice=1`.
 
 ## Reuse the pattern
 
@@ -134,7 +146,8 @@ You need AWS credentials with Location (Places/Routes), S3, Athena, and Glue per
 ```
 pipeline/   scrape → parse → geocode → build_geojson → lakehouse (Iceberg) → time_travel
 web/        index.html, style.css, app.js (MapLibre + Amazon Location REST), config.js, data/
-scripts/    deploy.ps1 (Amplify Hosting manual deploy)
+scripts/    deploy.ps1 (Amplify Hosting manual deploy), make_voice.py (Polly), compose_video.py, find_start.py
+video/      narration.json (script), narration.srt, capcut_script.txt
 docs/       screenshots
 ```
 

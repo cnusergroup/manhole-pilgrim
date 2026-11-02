@@ -273,7 +273,7 @@
   }
 
   // ---------------- timeline ----------------
-  function startPlay() {
+  function startPlay(stepMs = 520) {
     selectTab($("#t-explore"));
     $("#play").setAttribute("aria-pressed", "true"); $("#play").textContent = "❚❚ Pause";
     if (S.series >= S.maxSeries) S.series = 0;
@@ -281,7 +281,7 @@
     S.playing = setInterval(() => {
       S.series += 1; $("#series").value = S.series; render();
       if (S.series >= S.maxSeries) stopPlay();
-    }, 520);
+    }, stepMs);
   }
   function stopPlay() {
     if (!S.playing) return;

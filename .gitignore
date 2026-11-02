@@ -2,7 +2,10 @@
 # Re-create them with: python pipeline/scrape.py && python pipeline/parse.py && python pipeline/geocode.py
 /data/
 /scratch/
-/video/
+/video/*
+!/video/narration.json
+!/video/narration.srt
+!/video/capcut_script.txt
 __pycache__/
 *.pyc
 .venv/

@@ -1,0 +1,61 @@
+Manhole Pilgrim 蓋めぐり — 演示视频旁白稿（英文配音）
+用法 A：剪映 → 导入 narration.srt 作为字幕 → 全选字幕 → 文本朗读，选英文男声。
+用法 B：逐段复制下面的文字到剪映「文本朗读」。段落之间留约 0.5 秒停顿。
+预计总时长：146 秒
+
+[s01 · intro-cover · 6.4s]
+Japan has fifteen million manhole covers. Thousands are works of art, cast in iron by the town they belong to.
+
+[s02 · intro-card · 7.4s]
+Since 2016, sewer agencies have turned them into free manhole cards, each with the cover, its coordinates, and its story.
+
+[s03 · intro-rule · 6.5s]
+One rule: you can't buy them or order them online. You walk up to one specific counter, in one town, and ask.
+
+[s04 · intro-why · 8.3s]
+That makes them perfect for travellers: a free souvenir, and a reason to step off the tourist trail. Many counters are tourist offices you'd pass anyway.
+
+[s05 · intro-problem · 5.6s]
+But the official list is forty-seven pages of Japanese addresses, with no map. So we built one.
+
+[s06 · title · 3.7s]
+Manhole Pilgrim. Every card in Japan, on one map.
+
+[s07 · map-overview · 8.1s]
+We geocoded all thirteen hundred counters with Amazon Location Places: Geocode for addresses, Search Text for places with only a name.
+
+[s08 · timeline · 8.2s]
+Ten years of releases. Series one had thirty cards. Every few months a new series lands, until all forty-seven prefectures are covered.
+
+[s09 · popup · 5.7s]
+Click any card to see its design, where to pick it up, and the opening hours, with a link to the official page.
+
+[s10 · sewer-filter · 8.7s]
+Filter by where you pick them up. One card in five is only handed out at a sewage or water plant. The cards were built to bring people into infrastructure they never see.
+
+[s11 · plan-kyoto-iso · 10.2s]
+Now the traveller's question: I'm in Kyoto this weekend, how many can I collect? Calculate Isolines draws the real one-hour drive area. About a hundred cards fall inside.
+
+[s12 · plan-kyoto-route · 7.6s]
+Optimize Waypoints turns the six nearest into a loop with arrival times. That is an easy afternoon, and six cards you can only get here.
+
+[s13 · plan-sapporo · 8.4s]
+Some starts, like the middle of Sapporo Station, can't be driven back to. Then the app falls back to a route matrix and plans a one-way trip on real drive times.
+
+[s14 · disc-lonely · 6.6s]
+The map also surprised us. The loneliest card is on the Ogasawara Islands, nine hundred kilometres from any other.
+
+[s15 · disc-border · 8.0s]
+And this Hyogo card can only be collected in Osaka. Our geocoder flagged it as an error. It wasn't. The treatment plant sits across the border.
+
+[s16 · disc-roadside · 5.9s]
+Ninety-eight cards wait at michi-no-eki roadside stations. Manhole cards are a road-trip game.
+
+[s17 · arch · 13.1s]
+How it works: scrape the registry, geocode with Amazon Location, merge into an Apache Iceberg table on S3 with Athena, and serve a static site on Amplify. Maps and Routes run in the browser, with no backend.
+
+[s18 · iceberg · 6.1s]
+Each series is an Iceberg snapshot you can time-travel to. Swap the scraper, and it works for any stamp rally.
+
+[s19 · outro · 2.4s]
+Manhole Pilgrim. Go find the sewers.
