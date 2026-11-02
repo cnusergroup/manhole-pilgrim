@@ -1,6 +1,4 @@
-﻿# Manhole Pilgrim: mapping all 1,313 Japanese manhole cards with Amazon Location Service and Apache Iceberg on S3
-
-**Japan hid its sewers underground, then printed them as trading cards. I put all 1,313 on one map, so a traveller can see how many they can collect this weekend and get a route.**
+﻿**Japan hid its sewers underground, then printed them as trading cards. I put all 1,313 on one map, so a traveller can see how many they can collect this weekend and get a route.**
 
 - 🗺️ **Live map:** https://main.d1y4wxk0wltj16.amplifyapp.com
 - 🎬 **Demo video (2:33):** _YOUTUBE_LINK_

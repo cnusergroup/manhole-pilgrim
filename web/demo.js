@@ -303,7 +303,54 @@
     window.__demoDone = true;
   }
 
+  // ?demo=1&cover=1 → 静态封面（文章 / 社交预览用），不播放演示
+  async function cover() {
+    const { map } = MP;
+    stage.classList.remove("on");
+    document.querySelector("#panel").style.display = "none";
+    document.querySelector(".brand").style.display = "none";
+    document.querySelectorAll(".maplibregl-ctrl").forEach((c) => (c.style.display = "none"));
+    MP.S.series = MP.S.maxSeries - 1; MP.render(); // 只让最新一弾发光，避免画面太乱
+    MP.S.series = MP.S.maxSeries; MP.render();
+    const W = innerWidth, H = innerHeight;
+    map.jumpTo({ center: [136.6, 37.4], zoom: Math.log2(W / 1600) + 4.75 });
+    map.setPadding({ left: W * 0.42, top: 0, right: 0, bottom: 0 });
+    const el = document.createElement("div");
+    el.className = "cover";
+    el.innerHTML = `
+      <div class="cv-copy">
+        <div class="cv-lid"><span></span></div>
+        <h1>Manhole Pilgrim<br><span>蓋めぐり</span></h1>
+        <p>Every Japanese manhole card on one map.<br>How many can you collect this weekend?</p>
+        <div class="cv-stats"><b>1,313</b> cards <i>·</i> <b>47</b> prefectures <i>·</i> <b>10</b> years</div>
+        <div class="cv-aws">Amazon Location Service · Apache Iceberg on Amazon S3</div>
+      </div>
+      <div class="cv-cards">${["28-201-A-01", "01-202-A-01", "47-201-A-01"].map((id, i) => `<div class="cv-c" style="--i:${i}">${cardHTML(id, 190)}</div>`).join("")}</div>`;
+    const css2 = document.createElement("style");
+    css2.textContent = `
+      .cover { position: fixed; inset: 0; z-index: 70; pointer-events: none;
+        background: linear-gradient(90deg, #0b0c0d 0%, #0b0c0df2 30%, #0b0c0d99 44%, transparent 60%); }
+      .cv-copy { position: absolute; left: 7%; top: 50%; transform: translateY(-52%); color: #ece6da; max-width: 46%; }
+      .cv-lid { width: 92px; height: 92px; border-radius: 50%; margin-bottom: 28px; background: repeating-conic-gradient(#3b4046 0 10deg, #2b2f34 10deg 20deg);
+        box-shadow: inset 0 0 0 6px #4b5158, inset 0 0 0 11px #1b1d20, 0 10px 40px #000; display: grid; place-items: center; }
+      .cv-lid span { width: 34px; height: 34px; border-radius: 50%; background: #e8502d; box-shadow: 0 0 0 7px #1b1d20, 0 0 34px #e8502d; }
+      .cover h1 { font: 800 96px/1.02 "Shippori Mincho B1", serif; margin: 0; letter-spacing: -.01em; }
+      .cover h1 span { color: #e8502d; font-size: 78px; }
+      .cover p { font: 500 30px/1.45 "Zen Kaku Gothic New", sans-serif; color: #cfc8ba; margin: 26px 0 0; }
+      .cv-stats { margin-top: 30px; font: 500 26px "Zen Kaku Gothic New"; color: #cfc8ba; }
+      .cv-stats b { font: 800 40px "Shippori Mincho B1", serif; color: #ece6da; } .cv-stats i { color: #e8502d; font-style: normal; margin: 0 8px; }
+      .cv-aws { margin-top: 22px; display: inline-block; font: 600 19px "Azeret Mono", monospace; color: #d9a441; border: 1px solid #d9a44166; border-radius: 999px; padding: 9px 18px; }
+      .cv-cards { position: absolute; right: 7%; bottom: 9%; width: 440px; height: 300px; zoom: .74; }
+      .cv-c { position: absolute; bottom: 0; left: calc(var(--i) * 118px); transform: rotate(calc((var(--i) - 1) * 9deg)) translateY(calc(var(--i) * -6px)); transform-origin: 50% 120%; }
+      .cv-c .mcard { opacity: 1; transform: none; }`;
+    document.head.appendChild(css2);
+    document.body.appendChild(el);
+    await new Promise((r) => map.once("idle", r));
+    window.__coverReady = true;
+  }
+
   window.addEventListener("mp:ready", async () => {
+    if (qs.has("cover")) return cover();
     if (qs.has("wait")) {
       // 场记板：纯白画面，录屏开始后调用 window.__demoGo() 才开始，白→黑的跳变用来精确对齐配音
       const slate = Object.assign(document.createElement("div"), { style: "position:fixed;inset:0;z-index:100;background:#fff" });
