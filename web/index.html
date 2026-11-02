@@ -5,11 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Manhole Pilgrim 蓋めぐり — every Japanese manhole card on one map</title>
   <meta name="description" content="1,313 collectible manhole cards from Japan's sewer agencies, geocoded with Amazon Location Service. Filter by series, find what you can reach this weekend, and plan a pilgrimage route." />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Manhole Pilgrim 蓋めぐり: every Japanese manhole card on one map" />
+  <meta property="og:description" content="1,313 collectible manhole cards, geocoded with Amazon Location Service. See how many you can collect within a drive of where you are, and get an optimized pilgrimage route." />
+  <meta property="og:image" content="https://main.d1y4wxk0wltj16.amplifyapp.com/og.jpg" />
+  <meta property="og:url" content="https://main.d1y4wxk0wltj16.amplifyapp.com/" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Azeret+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-  <link href="style.css?v=8" rel="stylesheet" />
+  <link href="style.css?v=10" rel="stylesheet" />
 </head>
 <body>
   <a class="skip" href="#panel">Skip to controls</a>
@@ -106,10 +112,21 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+  <!-- Plain-text summary for screen readers, crawlers and AI reviewers that don't run JavaScript -->
+  <section class="sr-only" id="about" aria-label="About this map">
+    <h2>About Manhole Pilgrim</h2>
+    <p>An interactive map of all 1,313 Japanese manhole cards (マンホールカード), series 1 to 29, issued from April 2016 to July 2026 across all 47 prefectures. Manhole cards are free collectible cards that you can only get in person, at one specific counter per card.</p>
+    <p>Dataset: the official GKP (下水道広報プラットホーム) registry at gk-p.jp/mhcard, with 47 prefecture pages of free-text Japanese addresses and no coordinates. Every distribution counter was geocoded with Amazon Location Service Places (Geocode, and SearchText for name-only places): 1,304 of 1,313 to a street address or point of interest.</p>
+    <p>What you can explore: filter by series, prefecture and the type of place that hands the card out (265 at sewage or water plants, 98 at michi-no-eki roadside stations), and replay ten years of releases on a timeline. Pick a start point and a drive time to see the cards inside an Amazon Location CalculateIsolines drive-time area, and get an OptimizeWaypoints pilgrimage route with arrival times.</p>
+    <p>AWS services: Amazon Location Service (Maps, Places, Routes); Apache Iceberg tables on Amazon S3 via Amazon Athena and AWS Glue (one snapshot per series, time travel); AWS Amplify Hosting; Amazon API Gateway, AWS Lambda and Amazon DynamoDB as a rate-limited proxy with daily caps; Amazon Polly for the demo narration.</p>
+    <p>Source code (MIT): <a href="https://github.com/cnusergroup/manhole-pilgrim">github.com/cnusergroup/manhole-pilgrim</a></p>
+  </section>
+  <noscript><p style="position:fixed;inset:auto 0 0 0;padding:16px;background:#000;color:#fff;z-index:99">This map needs JavaScript and WebGL. A summary of the project is above, and the source is at github.com/cnusergroup/manhole-pilgrim.</p></noscript>
+
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <script src="config.js?v=8"></script>
-  <script src="demo_timing.js?v=8"></script>
-  <script src="demo.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="config.js?v=10"></script>
+  <script src="demo_timing.js?v=10"></script>
+  <script src="demo.js?v=10"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

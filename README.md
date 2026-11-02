@@ -74,6 +74,8 @@ A public map has to work for anonymous visitors. Anything the browser holds, any
 | **Rate limit** | API Gateway allows 5 requests/s with a burst of 10, across all clients. |
 | **Hard daily cap per operation** | A DynamoDB atomic counter rejects calls past the cap with HTTP 429. Defaults: search 1,000 · isolines 500 · optimize 300 · routes 600 · matrix 200 per UTC day. This bounds the worst-case daily bill no matter who calls. |
 
+On top of that, `scripts/create_budget.py --email you@example.com --usd 20` creates a monthly AWS Budget scoped to this project's services. It emails at 50 % and 100 % of actual spend, and at 100 % of forecast.
+
 A visitor's request costs one Lambda call, about 100–200 ms more than calling Amazon Location directly. When `OptimizeWaypoints` fails, the proxy returns the error within about 4 s, and the browser falls back to the route matrix with 2-opt.
 
 ## Architecture

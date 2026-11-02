@@ -1,4 +1,4 @@
-/* Manhole Pilgrim — 蓋めぐり
+﻿/* Manhole Pilgrim — 蓋めぐり
  * 前端：MapLibre GL + Amazon Location Service (Maps / Places / Routes v2, API Key 鉴权)
  */
 (() => {
@@ -75,8 +75,9 @@
   };
 
   // ---------------- map ----------------
+  const MOBILE = innerWidth <= 760;
   const map = new maplibregl.Map({
-    container: "map", style: API.style, center: [137.6, 37.2], zoom: 4.6, minZoom: 3.5, maxZoom: 17,
+    container: "map", style: API.style, center: MOBILE ? [137.2, 31.5] : [137.6, 37.2], zoom: MOBILE ? 3.7 : 4.6, minZoom: 3.2, maxZoom: 17,
     attributionControl: { compact: true }, hash: false,
   });
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), "bottom-left");
@@ -270,11 +271,20 @@
     document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", S.ptypes.has(c.dataset.k)));
   }
 
+  // 地图缩放时为面板留白：桌面端面板在右侧，手机端面板在底部
+  function pad() {
+    if (innerWidth <= 760) {
+      const h = document.querySelector("#panel").getBoundingClientRect().height;
+      return { top: 70, bottom: h + 24, left: 24, right: 24 };
+    }
+    return { top: 90, bottom: 60, left: 60, right: 430 };
+  }
+
   function fitTo(feats, maxZoom = 11) {
     if (!feats.length) return toast("No cards match.");
     const b = new maplibregl.LngLatBounds();
     feats.forEach((f) => b.extend(f.geometry.coordinates));
-    map.fitBounds(b, { padding: { top: 90, bottom: 60, left: 60, right: 430 }, maxZoom, duration: 1200 });
+    map.fitBounds(b, { padding: pad(), maxZoom, duration: 1200 });
   }
 
   // ---------------- timeline ----------------
@@ -303,7 +313,8 @@
     const official = `https://www.gk-p.jp/mhcard/?pref=${p.pref_code === "00" ? "13" : p.pref_code}#mhcard_result`;
     const html = `
       <article class="pop">
-        <div class="img">${p.image ? `<img src="${esc(p.image)}" alt="Manhole card design for ${esc(p.muni)}" loading="lazy" referrerpolicy="no-referrer" />` : ""}</div>
+        <div class="img">${window.MP_POPUP_ART ? window.MP_POPUP_ART(p)
+          : p.image ? `<img src="${esc(p.image)}" alt="Manhole card design for ${esc(p.muni)}" loading="lazy" referrerpolicy="no-referrer" />` : ""}</div>
         <div class="body">
           <h3>${esc(p.muni)}${p.ended ? '<span class="badge ended">ENDED</span>' : p.series === S.maxSeries ? '<span class="badge">NEW</span>' : ""}</h3>
           <div class="meta">${esc(p.pref)} · <b>Series ${p.series}</b> · ${esc(p.issued)} · ${esc(p.code || p.id)}</div>
@@ -353,7 +364,7 @@
       recomputeReach(); render();
       const b = new maplibregl.LngLatBounds();
       polys.forEach((p) => p[0].forEach((c) => b.extend(c)));
-      map.fitBounds(b, { padding: { top: 80, bottom: 50, left: 50, right: 420 }, duration: 1100 });
+      map.fitBounds(b, { padding: pad(), duration: 1100 });
     } catch (err) {
       $("#reach").innerHTML = ""; toast("Isoline failed: " + err.message);
     }
@@ -486,7 +497,7 @@
       $("#itinerary").querySelectorAll("li[data-i]").forEach((li) =>
         li.addEventListener("click", () => { const f = ordered[+li.dataset.i]; map.flyTo({ center: f.geometry.coordinates, zoom: 14 }); openPopup([f]); }));
       const b = new maplibregl.LngLatBounds(); coords.forEach((c) => b.extend(c));
-      map.fitBounds(b, { padding: { top: 80, bottom: 50, left: 50, right: 420 }, duration: 1100 });
+      map.fitBounds(b, { padding: pad(), duration: 1100 });
     } catch (err) {
       toast("Route failed: " + err.message);
     } finally {

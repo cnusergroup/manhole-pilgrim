@@ -13,7 +13,8 @@ import subprocess
 import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_LIMITS = {"search-text": 1000, "isolines": 500, "optimize-waypoints": 300, "routes": 600, "route-matrix": 200}
+# calls per UTC day; route-matrix counts routes (origins x destinations), which is how it is billed
+DEFAULT_LIMITS = {"search-text": 1500, "isolines": 1000, "optimize-waypoints": 600, "routes": 1000, "route-matrix": 2000}
 
 
 def aws(*args, check=True):

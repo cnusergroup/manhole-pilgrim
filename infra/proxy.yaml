@@ -11,8 +11,10 @@ Parameters:
     Description: Browser origins allowed by CORS (e.g. https://main.xxxx.amplifyapp.com,http://localhost:8765)
   DailyLimits:
     Type: String
-    Default: '{"search-text":1000,"isolines":500,"optimize-waypoints":300,"routes":600,"route-matrix":200}'
-    Description: Hard per-day call caps per operation (UTC day). Requests beyond the cap get HTTP 429.
+    Default: '{"search-text":1500,"isolines":1000,"optimize-waypoints":600,"routes":1000,"route-matrix":2000}'
+    Description: >
+      Hard per-day caps per operation (UTC day): calls, except route-matrix which counts routes
+      (origins x destinations, billed per route). Requests beyond the cap get HTTP 429.
   RateLimit:
     Type: Number
     Default: 5
@@ -118,13 +120,15 @@ Resources:
                   return R.calculate_route_matrix, dict(Origins=pts(b["Origins"], 11), Destinations=pts(b["Destinations"], 11),
                                                         TravelMode="Car", RoutingBoundary={"Unbounded": True})
 
-          def allow(op):  # hard per-operation daily cap (atomic counter)
+          def allow(op, units):  # hard per-operation daily cap (atomic counter); matrix counts routes = origins x destinations
               day = time.strftime("%Y-%m-%d", time.gmtime())
+              if units > LIMITS[op]:
+                  return False
               try:
-                  T.update_item(Key={"k": f"{day}#{op}"}, UpdateExpression="ADD #n :one SET #e = :exp",
-                                ConditionExpression="attribute_not_exists(#n) OR #n < :max",
+                  T.update_item(Key={"k": f"{day}#{op}"}, UpdateExpression="ADD #n :u SET #e = :exp",
+                                ConditionExpression="attribute_not_exists(#n) OR #n <= :lim",
                                 ExpressionAttributeNames={"#n": "n", "#e": "expires_at"},
-                                ExpressionAttributeValues={":one": 1, ":max": LIMITS[op], ":exp": int(time.time()) + 172800})
+                                ExpressionAttributeValues={":u": units, ":lim": LIMITS[op] - units, ":exp": int(time.time()) + 172800})
                   return True
               except ClientError as e:
                   if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
@@ -148,7 +152,8 @@ Resources:
                   fn, kwargs = prep(op, body)
               except (ValueError, KeyError, TypeError, IndexError) as e:
                   return reply(400, {"message": f"bad request: {e}"[:160]})
-              if not allow(op):  # only valid requests count against the daily cap
+              units = len(kwargs["Origins"]) * len(kwargs["Destinations"]) if op == "route-matrix" else 1
+              if not allow(op, units):  # only valid requests count against the daily cap
                   return reply(429, {"message": "daily limit reached for this demo, please try again tomorrow"})
               try:
                   r = fn(**kwargs)

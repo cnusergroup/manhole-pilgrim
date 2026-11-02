@@ -17,9 +17,54 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const $ = (s) => document.querySelector(s);
   const T = window.MP_DEMO_TIMING || { gap: 0.45, leadIn: 1, segments: {} };
-  const IMG = (id) => `https://www.gk-p.jp/wp-content/uploads/mhc/${id}.jpg`;
   const WALL = ["01-202-A-01", "04-100-A-01", "09-206-A-01", "20-202-A-01", "23-100-A-01", "26-100-A-01",
                 "27-100-A-01", "28-201-A-01", "29-201-A-01", "34-100-A-01", "43-100-A-01", "47-201-A-01"];
+
+  /* ---------- original artwork ----------
+   * The video must not contain third-party copyrighted material or trademarks, so the demo never shows
+   * official card art. These covers are drawn here from simple geometry: rings, spokes, petals, waves.
+   * The live site (without ?demo) still shows the official image from the official server in its popup. */
+  const PALETTES = [
+    ["#2f6db5", "#9fd3f0", "#f2f2ea"], ["#c8402f", "#f5c542", "#2b2b2b"], ["#3f8f5a", "#c7e59a", "#f4efe2"],
+    ["#d9658a", "#ffd1dc", "#f7f3ea"], ["#6b4fa0", "#d8c7f0", "#f4c25b"], ["#e07b28", "#ffe0a8", "#2f3a4a"],
+  ];
+  function rng(seed) { let s = 0; for (const c of String(seed)) s = (s * 31 + c.charCodeAt(0)) >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
+  function lidSVG(seed, size = 200) {
+    const r = rng(seed), [a, b, c] = PALETTES[Math.floor(r() * PALETTES.length)], kind = Math.floor(r() * 4);
+    const N = 6 + Math.floor(r() * 7), parts = [];
+    if (kind === 0) for (let i = 0; i < N; i++) {           // 花瓣
+      const t = (i / N) * 360;
+      parts.push(`<ellipse cx="50" cy="31" rx="9" ry="17" fill="${i % 2 ? a : b}" transform="rotate(${t} 50 50)"/>`);
+    } else if (kind === 1) for (let i = 0; i < 5; i++) {    // 波浪
+      const y = 30 + i * 9;
+      parts.push(`<path d="M10 ${y} q10 -7 20 0 t20 0 t20 0 t20 0" fill="none" stroke="${i % 2 ? a : b}" stroke-width="4" stroke-linecap="round"/>`);
+    } else if (kind === 2) for (let i = 0; i < N * 2; i++) { // 放射
+      parts.push(`<path d="M50 50 L${50 + 40 * Math.cos((i / N) * Math.PI)} ${50 + 40 * Math.sin((i / N) * Math.PI)}" stroke="${i % 2 ? a : b}" stroke-width="5"/>`);
+    } else for (let x = 0; x < 7; x++) for (let y = 0; y < 7; y++) { // 格纹
+      if ((x - 3) ** 2 + (y - 3) ** 2 > 10) continue;
+      parts.push(`<rect x="${17 + x * 9.5}" y="${17 + y * 9.5}" width="7" height="7" rx="1.5" fill="${(x + y) % 2 ? a : b}"/>`);
+    }
+    return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" aria-hidden="true">
+      <defs><radialGradient id="g${seed}" cx="40%" cy="35%"><stop offset="0" stop-color="#6d737a"/><stop offset="1" stop-color="#2d3135"/></radialGradient>
+      <clipPath id="c${seed}"><circle cx="50" cy="50" r="38"/></clipPath></defs>
+      <circle cx="50" cy="50" r="48" fill="url(#g${seed})"/><circle cx="50" cy="50" r="44" fill="none" stroke="#1d2023" stroke-width="2"/>
+      ${Array.from({ length: 36 }, (_, i) => `<circle cx="${50 + 46 * Math.cos(i / 36 * 2 * Math.PI)}" cy="${50 + 46 * Math.sin(i / 36 * 2 * Math.PI)}" r="0.9" fill="#888e94"/>`).join("")}
+      <circle cx="50" cy="50" r="38" fill="${c}"/><g clip-path="url(#c${seed})">${parts.join("")}</g>
+      <circle cx="50" cy="50" r="38" fill="none" stroke="#1d2023" stroke-width="2.5"/>
+      <circle cx="50" cy="50" r="8" fill="#2d3135" stroke="${a}" stroke-width="2"/></svg>`;
+  }
+  // 原创卡片：自定义版式，不使用官方卡面的设计与标志
+  function cardHTML(id, w = 200, delay = 0) {
+    const f = MP.S.all.find((x) => x.properties.id === id), p = f?.properties || {};
+    const [col] = PALETTES[Math.floor(rng(id)() * PALETTES.length)];
+    const [lon, lat] = f?.geometry.coordinates || [0, 0];
+    return `<div class="mcard" style="width:${w}px;transition-delay:${delay}s;--c:${col}">
+      <div class="mh"><small>${p.pref || ""}</small><b>${p.muni || ""}</b></div>
+      <div class="mi">${lidSVG(id, w - 30)}</div>
+      <div class="mf"><span>SERIES ${p.series ?? ""}</span><span>${lat.toFixed(2)}°N ${lon.toFixed(2)}°E</span></div></div>`;
+  }
+  window.MP_POPUP_ART = (p) => `<div style="display:grid;place-items:center;gap:6px">${lidSVG(p.id, 150)}
+    <small style="font:11px 'Azeret Mono',monospace;color:#9a958b">illustration · official card art at gk-p.jp</small></div>`;
 
   // ---------- overlay styles ----------
   const css = document.createElement("style");
@@ -42,18 +87,27 @@
     .demo-stage .scene { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity .7s, transform 1.2s cubic-bezier(.2,.8,.2,1); }
     .demo-stage .scene.on { opacity: 1; }
 
+    /* 原创卡片 */
+    .mcard { background: #f4efe2; border-radius: 12px; padding: 0 0 10px; box-shadow: 0 18px 40px #000c; overflow: hidden; color: #222;
+      opacity: 0; transform: translateY(30px); transition: opacity .6s, transform .8s cubic-bezier(.2,.8,.2,1); }
+    .scene.on .mcard { opacity: 1; transform: none; }
+    .mcard .mh { background: var(--c); color: #fff; padding: 8px 12px 7px; text-align: center; }
+    .mcard .mh small { display: block; font: 600 11px "Zen Kaku Gothic New"; opacity: .85; }
+    .mcard .mh b { font: 800 20px "Shippori Mincho B1", serif; }
+    .mcard .mi { display: grid; place-items: center; padding: 12px 0 6px; background: repeating-linear-gradient(45deg, #e9e3d4 0 6px, #efe9dc 6px 12px); }
+    .mcard .mf { display: flex; justify-content: space-between; padding: 6px 12px 0; font: 600 10.5px "Azeret Mono", monospace; color: #555; }
+
     /* 卡墙 */
     .wall { display: grid; grid-template-columns: repeat(6, 200px); gap: 22px; transform: rotate(-4deg) translateY(-90px); transition: transform 7s ease-out; }
-    .wall img { width: 200px; height: 282px; object-fit: cover; border-radius: 12px; box-shadow: 0 18px 40px #000c; opacity: 0; transform: translateY(30px);
-      transition: opacity .6s, transform .8s cubic-bezier(.2,.8,.2,1); }
-    .scene.on .wall img { opacity: 1; transform: none; }
     .wall-title { position: absolute; left: 0; right: 0; bottom: 0; padding: 90px 90px 150px; background: linear-gradient(transparent, #0b0c0df2 40%);
       font: 800 64px/1.05 "Shippori Mincho B1", serif; text-shadow: 0 6px 30px #000; }
     .wall-title span { color: #e8502d; }
 
     /* 单卡特写 */
     .focus { display: grid; grid-template-columns: 420px 520px; gap: 70px; align-items: center; }
-    .focus img { width: 420px; border-radius: 18px; box-shadow: 0 30px 70px #000d; transform: rotate(-3deg); }
+    .focus .mcard { transform: rotate(-3deg); box-shadow: 0 30px 70px #000d; }
+    .scene.on .focus .mcard { transform: rotate(-3deg); }
+    .focus .mcard .mh b { font-size: 34px; } .focus .mcard .mh small { font-size: 15px; } .focus .mcard .mf { font-size: 15px; }
     .focus ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
     .focus li { font-size: 26px; line-height: 1.4; display: grid; grid-template-columns: 54px 1fr; align-items: start; opacity: 0; transform: translateX(20px); transition: .6s; }
     .scene.on .focus li { opacity: 1; transform: none; }
@@ -144,11 +198,11 @@
   // ---------- scenes (keyed by narration.json "scene") ----------
   const SCENES = {
     "intro-cover": () => {
-      const el = scene(`<div class="wall">${WALL.map((id, i) => `<img src="${IMG(id)}" alt="" style="transition-delay:${i * 0.12}s" referrerpolicy="no-referrer">`).join("")}</div>
+      const el = scene(`<div class="wall">${WALL.map((id, i) => cardHTML(id, 200, i * 0.12)).join("")}</div>
         <div class="wall-title">15,000,000 <span>manhole covers</span></div>`);
       setTimeout(() => (el.querySelector(".wall").style.transform = "rotate(-4deg) translate(-40px, -110px) scale(1.06)"), 300);
     },
-    "intro-card": () => scene(`<div class="focus"><img src="${IMG("28-201-A-01")}" alt="" referrerpolicy="no-referrer">
+    "intro-card": () => scene(`<div class="focus">${cardHTML("28-201-A-01", 420)}
         <ul>
           <li><span class="ic">01</span><div><b>Free</b><small>Issued by local sewer agencies since 2016</small></div></li>
           <li style="transition-delay:.5s"><span class="ic">02</span><div><b>The real cover</b><small>Photo, design story, and GPS coordinates on the back</small></div></li>
@@ -250,8 +304,6 @@
   }
 
   window.addEventListener("mp:ready", async () => {
-    // 预加载片头卡图（在开始前完成，避免影响计时）
-    await Promise.all(WALL.concat("28-201-A-01").map((id) => new Promise((r) => { const i = new Image(); i.referrerPolicy = "no-referrer"; i.onload = i.onerror = r; i.src = IMG(id); })));
     if (qs.has("wait")) {
       // 场记板：纯白画面，录屏开始后调用 window.__demoGo() 才开始，白→黑的跳变用来精确对齐配音
       const slate = Object.assign(document.createElement("div"), { style: "position:fixed;inset:0;z-index:100;background:#fff" });
