@@ -1,4 +1,4 @@
-# Manhole Pilgrim 蓋めぐり
+﻿# Manhole Pilgrim 蓋めぐり
 
 **Japan hid its sewers underground, then printed them as trading cards. This map shows where to collect all 1,313 of them.**
 
@@ -62,7 +62,19 @@ Amazon Location covers every geospatial step, and each API was picked for a spec
 
 **Geocoding sanity checks.** Each result must land within 60 km of its municipality's own geocoded centroid. Prefecture-level cards (code `XX-000-…`) only need to land in the right prefecture. An address that explicitly names another prefecture wins over both rules, which is how the Hyōgo-in-Osaka card survived validation.
 
-The browser talks to Amazon Location directly with an **API key**, so the app needs no backend. The key is restricted to the specific actions above, to the `provider/default` resources in `ap-northeast-1`, and to the site's referer.
+### Keeping a public map safe to leave online
+
+A public map has to work for anonymous visitors. Anything the browser holds, anyone can copy, so the design caps what a copied credential can do and what abuse can cost:
+
+| Layer | What it does |
+|---|---|
+| **Browser API key: tiles only** | The key in `web/config.js` allows only `geo-maps:GetTile`, only on `provider/default` in `ap-northeast-1`, only from the site's referer, and **expires on 2026-12-31**. It cannot call Places or Routes. |
+| **Proxy for every paid call** (`infra/proxy.yaml`) | Place search, isolines, waypoint optimization, route matrix and routes go through **API Gateway (HTTP API) → AWS Lambda**. The Lambda IAM role holds the only permission to call those APIs. |
+| **Server-built requests** | The Lambda builds each Amazon Location request itself. It accepts only coordinates inside Japan, drive times of 30/60/120/180 min, and at most 10 waypoints (11×11 matrix). Every other field is fixed server-side. |
+| **Rate limit** | API Gateway allows 5 requests/s with a burst of 10, across all clients. |
+| **Hard daily cap per operation** | A DynamoDB atomic counter rejects calls past the cap with HTTP 429. Defaults: search 1,000 · isolines 500 · optimize 300 · routes 600 · matrix 200 per UTC day. This bounds the worst-case daily bill no matter who calls. |
+
+A visitor's request costs one Lambda call, about 100–200 ms more than calling Amazon Location directly. When `OptimizeWaypoints` fails, the proxy returns the error within about 4 s, and the browser falls back to the route matrix with 2-opt.
 
 ## Architecture
 
@@ -78,7 +90,11 @@ flowchart LR
   ICE -->|Athena SELECT| WEB["cards.geojson + lake.json"]
   WEB --> AMP["AWS Amplify Hosting<br/>(CloudFront CDN, HTTPS)"]
   AMP --> BROWSER["Browser: MapLibre GL"]
-  BROWSER -->|API key| LOC["Amazon Location<br/>Maps · Places · Routes"]
+  BROWSER -->|"API key (GetTile only)"| MAPS["Amazon Location Maps<br/>tiles"]
+  BROWSER -->|"search · isolines · routes"| APIGW["API Gateway HTTP API<br/>5 rps, burst 10"]
+  APIGW --> LAMBDA["AWS Lambda proxy<br/>Japan-only validation"]
+  LAMBDA <-->|daily cap counter| DDB[(DynamoDB)]
+  LAMBDA -->|IAM role| LOC["Amazon Location<br/>Places SearchText · Routes"]
 ```
 
 ### Why Iceberg tables on S3
@@ -101,7 +117,9 @@ SELECT * FROM "manhole_pilgrim"."cards$snapshots" ORDER BY committed_at DESC LIM
 
 ### AWS services used
 
-- **Amazon Location Service**: Maps, Places (Geocode, SearchText), and Routes (CalculateIsolines, OptimizeWaypoints, CalculateRouteMatrix, CalculateRoutes), plus an API key with action, resource, and referer restrictions
+- **Amazon Location Service**: Maps, Places (Geocode, SearchText), and Routes (CalculateIsolines, OptimizeWaypoints, CalculateRouteMatrix, CalculateRoutes), plus a tiles-only API key with referer and expiry restrictions
+- **Amazon API Gateway (HTTP API)** + **AWS Lambda**: rate-limited, validating proxy for every paid Location call (CloudFormation: `infra/proxy.yaml`)
+- **Amazon DynamoDB**: per-operation daily quota counter
 - **Amazon S3**: raw landing zone and Iceberg warehouse (public access blocked)
 - **Amazon Athena**: DDL, `MERGE INTO`, time travel, export
 - **AWS Glue Data Catalog**: Iceberg table metadata
@@ -138,7 +156,7 @@ Your IAM identity needs these permissions:
 
 | Path | Actions |
 |---|---|
-| A | `amplify:*` on your app, `geo:CreateKey`, `geo:UpdateKey`, `geo:DescribeKey` |
+| A | `amplify:*` on your app; `geo:CreateKey`, `geo:DescribeKey`; `cloudformation:*` on the proxy stack, plus what it creates: `iam:CreateRole`/`PutRolePolicy`/`AttachRolePolicy`/`PassRole`, `lambda:*`, `apigateway:*`, `dynamodb:CreateTable`/`DescribeTable`/`UpdateTimeToLive`, `logs:CreateLogGroup`/`PutRetentionPolicy` |
 | B (additionally) | `geo-places:Geocode`, `geo-places:SearchText`; `s3:*` on the lake bucket; `athena:StartQueryExecution`, `athena:GetQueryExecution`; `glue:*Database*`, `glue:*Table*`, `glue:*Partition*` |
 | Video (optional) | `polly:SynthesizeSpeech` |
 
@@ -153,24 +171,21 @@ APP_ID=$(aws amplify create-app --name manhole-pilgrim --platform WEB --query ap
 aws amplify create-branch --app-id $APP_ID --branch-name main --stage PRODUCTION
 echo "Your site will be https://main.$APP_ID.amplifyapp.com"
 
-# 2. Create a browser API key for Amazon Location, restricted to the actions the app uses and your domain
-aws location create-key --key-name manhole-pilgrim-web --no-expiry --restrictions "{
-  \"AllowActions\": [\"geo-maps:GetTile\", \"geo-places:SearchText\",
-    \"geo-routes:CalculateIsolines\", \"geo-routes:CalculateRoutes\",
-    \"geo-routes:CalculateRouteMatrix\", \"geo-routes:OptimizeWaypoints\"],
-  \"AllowResources\": [\"arn:aws:geo-maps:$AWS_REGION::provider/default\",
-    \"arn:aws:geo-places:$AWS_REGION::provider/default\",
-    \"arn:aws:geo-routes:$AWS_REGION::provider/default\"],
-  \"AllowReferers\": [\"https://main.$APP_ID.amplifyapp.com/*\", \"http://localhost:8765/*\"]
-}" --query Key --output text
+# 2. Deploy the Amazon Location proxy (API Gateway + Lambda + DynamoDB, CloudFormation) → prints proxyUrl
+python scripts/deploy_proxy.py --origins "https://main.$APP_ID.amplifyapp.com,http://localhost:8765"
+#    optional: --limits '{"isolines":200}' lowers individual daily caps (defaults in the table above)
+python scripts/test_proxy.py <proxyUrl>      # 9 checks: every operation + the guard rails
+
+# 3. Create the browser API key: map tiles only, your domain only, with an expiry date → prints apiKey
+python scripts/create_map_key.py --referers "https://main.$APP_ID.amplifyapp.com/*,http://localhost:8765/*" --expires 2026-12-31 > key.txt
 ```
 
-3. Paste the printed key into `apiKey` in **`web/config.js`**. Also point the "Source" link in `web/index.html` at your fork.
-4. Preview it locally. The key allows `localhost:8765`.
+4. Write both values into **`web/config.js`**: `python scripts/set_config.py --key-file key.txt --proxy <proxyUrl>`. You can also edit `apiKey` and `proxyUrl` by hand. Point the "Source" link in `web/index.html` at your fork.
+5. Preview it locally. The key allows `localhost:8765`.
    ```bash
    python -m http.server 8765 --directory web    # open http://localhost:8765
    ```
-5. Deploy:
+6. Deploy:
    ```bash
    # Windows PowerShell
    powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -AppId <APP_ID>
@@ -206,11 +221,12 @@ See [How the demo video is made](#how-the-demo-video-is-made). In short: edit `v
 
 ### Cost and clean-up
 
-Expect a few US dollars at hackathon scale. Geocoding about 1,600 queries with `IntendedUse=Storage` is the largest one-off. After that, map tiles and routing are charged per request by visitors. Athena scans are a few MB. Set an [AWS Budget](https://console.aws.amazon.com/billing/home#/budgets) alert if you leave the site up.
+Expect a few US dollars at hackathon scale. Geocoding about 1,600 queries with `IntendedUse=Storage` is the largest one-off. After that, map tiles and routing are charged per visitor request. The proxy's daily caps bound routing and search spend. Lambda, API Gateway and DynamoDB cost cents at this scale. Athena scans are a few MB. Set an [AWS Budget](https://console.aws.amazon.com/billing/home#/budgets) alert if you leave the site up.
 
 ```bash
 aws amplify delete-app --app-id $APP_ID
-aws location delete-key --key-name manhole-pilgrim-web --force-delete
+aws location delete-key --key-name manhole-pilgrim-tiles --force-delete
+aws cloudformation delete-stack --stack-name manhole-pilgrim-proxy   # API Gateway, Lambda, DynamoDB, IAM role, log group
 # path B only:
 aws glue delete-table --database-name manhole_pilgrim --name cards
 aws glue delete-table --database-name manhole_pilgrim --name raw_cards
@@ -223,7 +239,9 @@ aws s3 rb s3://manhole-pilgrim-lake-$(aws sts get-caller-identity --query Accoun
 ```
 pipeline/   scrape → parse → geocode → build_geojson → lakehouse (Iceberg) → time_travel
 web/        index.html, style.css, app.js (MapLibre + Amazon Location REST), config.js, data/
-scripts/    deploy.ps1 (Amplify Hosting manual deploy), make_voice.py (Polly), compose_video.py, find_start.py
+infra/      proxy.yaml (CloudFormation: API Gateway + Lambda + DynamoDB quota for Amazon Location)
+scripts/    deploy.ps1 (Amplify), deploy_proxy.py, test_proxy.py, create_map_key.py, set_config.py,
+            make_voice.py (Polly), compose_video.py, find_start.py
 video/      narration.json (script), narration.srt, capcut_script.txt
 docs/       screenshots
 ```
@@ -232,7 +250,7 @@ docs/       screenshots
 
 - Card listings come from the official GKP registry. **Card images are not copied into this repo.** The live popup displays them from the official server and links back to the official page, and card art is blurred in the README screenshots. All card designs are © their issuing municipalities and GKP.
 - `web/data/cards.geojson` holds factual listing data (place names, public addresses, opening hours, and links to the official images), plus coordinates we computed. It contains no personal data.
-- The Amazon Location API key in `web/config.js` is a public browser key, restricted by action, resource, and referer. Use your own key for your own deployment.
+- The Amazon Location API key in `web/config.js` is a public, **tiles-only** browser key with a referer restriction and an expiry. See [Keeping a public map safe](#keeping-a-public-map-safe-to-leave-online). An earlier key with broader permissions appears in git history. It has been **deleted** in AWS and no longer works. Use your own key for your own deployment.
 - Raw scraped pages and intermediate files are not committed (`.gitignore`). Re-create them with the pipeline.
 - Distribution details (hours, stock) change. Always check the official link before travelling.
 - Place types (sewage plant, tourist info, michi-no-eki, …) come from a keyword classifier on place names, plus Amazon Location POI categories. Around 13 % are "Other".

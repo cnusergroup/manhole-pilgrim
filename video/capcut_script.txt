@@ -1,7 +1,7 @@
 Manhole Pilgrim 蓋めぐり — 演示视频旁白稿（英文配音）
 用法 A：剪映 → 导入 narration.srt 作为字幕 → 全选字幕 → 文本朗读，选英文男声。
 用法 B：逐段复制下面的文字到剪映「文本朗读」。段落之间留约 0.5 秒停顿。
-预计总时长：146 秒
+预计总时长：150 秒
 
 [s01 · intro-cover · 6.4s]
 Japan has fifteen million manhole covers. Thousands are works of art, cast in iron by the town they belong to.
@@ -51,8 +51,8 @@ And this Hyogo card can only be collected in Osaka. Our geocoder flagged it as a
 [s16 · disc-roadside · 5.9s]
 Ninety-eight cards wait at michi-no-eki roadside stations. Manhole cards are a road-trip game.
 
-[s17 · arch · 13.1s]
-How it works: scrape the registry, geocode with Amazon Location, merge into an Apache Iceberg table on S3 with Athena, and serve a static site on Amplify. Maps and Routes run in the browser, with no backend.
+[s17 · arch · 17.1s]
+How it works: scrape the registry, geocode with Amazon Location, and merge into an Apache Iceberg table on S3 with Athena. The site is static on Amplify. The browser key can only load map tiles. Every paid call goes through a rate-limited Lambda proxy with a daily cap.
 
 [s18 · iceberg · 6.1s]
 Each series is an Iceberg snapshot you can time-travel to. Swap the scraper, and it works for any stamp rally.

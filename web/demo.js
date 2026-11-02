@@ -137,10 +137,8 @@
   const fly = (center, zoom, duration = 2500) => MP.map.flyTo({ center, zoom, duration, essential: true });
   const byId = (id) => MP.S.all.find((f) => f.properties.id === id);
   async function placeSearch(q, bias) {
-    const r = await fetch(`https://places.geo.${MP_CONFIG.region}.amazonaws.com/v2/search-text?key=${encodeURIComponent(MP_CONFIG.apiKey)}`,
-      { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ QueryText: q, BiasPosition: bias, Filter: { IncludeCountries: ["JPN"] }, Language: "ja", MaxResults: 1 }) });
-    return (await r.json()).ResultItems[0];
+    const r = await window.MP_POST(`${MP_CONFIG.proxyUrl.replace(/\/$/, "")}/search-text`, { QueryText: q, BiasPosition: bias });
+    return r.ResultItems[0];
   }
 
   // ---------- scenes (keyed by narration.json "scene") ----------
@@ -206,9 +204,9 @@
         <div class="box"><i>SOURCE</i><b>GKP registry</b><p>47 prefecture pages, scraped politely and cached</p></div>
         <div class="box"><i>AMAZON LOCATION</i><b>Places</b><p><code>Geocode</code> + <code>SearchText</code><br>IntendedUse = Storage<br>1,304 / 1,313 precise</p></div>
         <div class="box"><i>APACHE ICEBERG · S3</i><b>Athena MERGE</b><p>One snapshot per series<br><code>FOR VERSION AS OF</code></p></div>
-        <div class="box"><i>AWS AMPLIFY</i><b>Static site</b><p>GeoJSON exported from Iceberg, on CloudFront. No backend.</p></div>
-        <div class="box"><i>AMAZON LOCATION</i><b>Maps + Routes</b><p>Isolines · OptimizeWaypoints · RouteMatrix · Routes</p></div>
-      </div><div class="foot">+ Amazon Polly for this narration</div></div>`),
+        <div class="box"><i>AWS AMPLIFY</i><b>Static site</b><p>GeoJSON exported from Iceberg, on CloudFront<br>Browser key: <code>GetTile</code> only</p></div>
+        <div class="box"><i>API GATEWAY + LAMBDA</i><b>Location proxy</b><p>Isolines · OptimizeWaypoints · RouteMatrix · SearchText<br>rate limit · Japan-only · daily caps</p></div>
+      </div><div class="foot">+ Amazon Polly for this narration · DynamoDB for the quota counter</div></div>`),
     iceberg: () => {
       hideStage(); MP.closePopup(); MP.resetFilters(); MP.selectTab($("#t-explore"));
       MP.S.series = 1; $("#series").value = 1; MP.render(); fly([137.6, 37.4], 4.7, 1200);

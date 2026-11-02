@@ -6,13 +6,16 @@
   const CFG = window.MP_CONFIG;
   const KEY = encodeURIComponent(CFG.apiKey);
   const R = CFG.region;
+  // 地图瓦片：浏览器 API Key（只有 geo-maps:GetTile 权限）
+  // 地点搜索 / 路线：走 infra/proxy.yaml 的 API Gateway + Lambda 代理（限流、参数校验、每日硬上限）
+  const PROXY = CFG.proxyUrl.replace(/\/$/, "");
   const API = {
     style: `https://maps.geo.${R}.amazonaws.com/v2/styles/${CFG.mapStyle}/descriptor?key=${KEY}&color-scheme=${CFG.colorScheme}`,
-    searchText: `https://places.geo.${R}.amazonaws.com/v2/search-text?key=${KEY}`,
-    isolines: `https://routes.geo.${R}.amazonaws.com/v2/isolines?key=${KEY}`,
-    optimize: `https://routes.geo.${R}.amazonaws.com/v2/optimize-waypoints?key=${KEY}`,
-    routes: `https://routes.geo.${R}.amazonaws.com/v2/routes?key=${KEY}`,
-    matrix: `https://routes.geo.${R}.amazonaws.com/v2/route-matrix?key=${KEY}`,
+    searchText: `${PROXY}/search-text`,
+    isolines: `${PROXY}/isolines`,
+    optimize: `${PROXY}/optimize-waypoints`,
+    routes: `${PROXY}/routes`,
+    matrix: `${PROXY}/route-matrix`,
   };
 
   const PTYPES = {
@@ -47,9 +50,11 @@
 
   async function post(url, body) {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.status === 429) throw new Error("this demo hit its daily request limit, please try again tomorrow");
     if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 160)}`);
     return res.json();
   }
+  window.MP_POST = post;
 
   // 射线法点在多边形内（支持 MultiPolygon，含洞）
   function inRing(pt, ring) {

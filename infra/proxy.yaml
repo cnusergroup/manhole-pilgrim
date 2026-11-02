@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Manhole Pilgrim - Amazon Location proxy. The browser never holds credentials for the paid Places/Routes
+  APIs: it calls this HTTP API, which validates input (Japan only, small requests), enforces a hard daily
+  quota per operation (DynamoDB atomic counter), and calls Amazon Location with a least-privilege IAM role.
+  API Gateway adds a global rate limit on top.
+
+Parameters:
+  AllowedOrigins:
+    Type: CommaDelimitedList
+    Description: Browser origins allowed by CORS (e.g. https://main.xxxx.amplifyapp.com,http://localhost:8765)
+  DailyLimits:
+    Type: String
+    Default: '{"search-text":1000,"isolines":500,"optimize-waypoints":300,"routes":600,"route-matrix":200}'
+    Description: Hard per-day call caps per operation (UTC day). Requests beyond the cap get HTTP 429.
+  RateLimit:
+    Type: Number
+    Default: 5
+    Description: API Gateway steady-state requests per second (all clients combined)
+  BurstLimit:
+    Type: Number
+    Default: 10
+
+Resources:
+  QuotaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions: [{ AttributeName: k, AttributeType: S }]
+      KeySchema: [{ AttributeName: k, KeyType: HASH }]
+      TimeToLiveSpecification: { AttributeName: expires_at, Enabled: true }
+
+  ProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement: [{ Effect: Allow, Principal: { Service: lambda.amazonaws.com }, Action: sts:AssumeRole }]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole]
+      Policies:
+        - PolicyName: location-and-quota
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: geo-places:SearchText
+                Resource: !Sub arn:aws:geo-places:${AWS::Region}::provider/default
+              - Effect: Allow
+                Action: [geo-routes:CalculateIsolines, geo-routes:CalculateRoutes, geo-routes:CalculateRouteMatrix, geo-routes:OptimizeWaypoints]
+                Resource: !Sub arn:aws:geo-routes:${AWS::Region}::provider/default
+              - Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt QuotaTable.Arn
+
+  ProxyLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-proxy
+      RetentionInDays: 14
+
+  ProxyFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ProxyLogs
+    Properties:
+      FunctionName: !Sub ${AWS::StackName}-proxy
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt ProxyRole.Arn
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE: !Ref QuotaTable
+          LIMITS: !Ref DailyLimits
+      Code:
+        ZipFile: |
+          import base64, json, os, time
+          import boto3
+          from botocore.config import Config
+          from botocore.exceptions import ClientError
+
+          # fail fast: the browser has its own fallback (route matrix) when optimize fails
+          CFG = Config(retries={"max_attempts": 2, "mode": "standard"}, connect_timeout=3, read_timeout=10)
+          P = boto3.client("geo-places", config=CFG)
+          R = boto3.client("geo-routes", config=CFG)
+          T = boto3.resource("dynamodb").Table(os.environ["TABLE"])
+          LIMITS = json.loads(os.environ["LIMITS"])
+
+          def pos(p):  # only accept coordinates inside Japan
+              x, y = float(p[0]), float(p[1])
+              if not (122 <= x <= 154 and 20 <= y <= 46.5):
+                  raise ValueError("position outside Japan")
+              return [x, y]
+
+          def pts(a, n, ids=False):
+              if not isinstance(a, list) or not 0 <= len(a) <= n:
+                  raise ValueError(f"at most {n} points")
+              return [({"Id": str(w["Id"])[:8]} if ids else {}) | {"Position": pos(w["Position"])} for w in a]
+
+          def prep(op, b):  # validate and build the request server-side; the client controls only a few fields
+              if op == "search-text":
+                  return P.search_text, dict(QueryText=str(b["QueryText"])[:80], BiasPosition=pos(b["BiasPosition"]),
+                                             Filter={"IncludeCountries": ["JPN"]}, Language="ja", MaxResults=1)
+              if op == "isolines":
+                  t = int(b["Thresholds"]["Time"][0])
+                  if t not in (1800, 3600, 7200, 10800):
+                      raise ValueError("time must be 30/60/120/180 min")
+                  return R.calculate_isolines, dict(Origin=pos(b["Origin"]), Thresholds={"Time": [t]},
+                                                    TravelMode="Car", IsolineGeometryFormat="Simple")
+              if op == "optimize-waypoints":
+                  return R.optimize_waypoints, dict(Origin=pos(b["Origin"]), Destination=pos(b["Destination"]),
+                                                    TravelMode="Car", Waypoints=pts(b["Waypoints"], 10, True))
+              if op == "routes":
+                  return R.calculate_routes, dict(Origin=pos(b["Origin"]), Destination=pos(b["Destination"]),
+                                                  Waypoints=pts(b.get("Waypoints", []), 10), TravelMode="Car",
+                                                  LegGeometryFormat="Simple")
+              if op == "route-matrix":
+                  return R.calculate_route_matrix, dict(Origins=pts(b["Origins"], 11), Destinations=pts(b["Destinations"], 11),
+                                                        TravelMode="Car", RoutingBoundary={"Unbounded": True})
+
+          def allow(op):  # hard per-operation daily cap (atomic counter)
+              day = time.strftime("%Y-%m-%d", time.gmtime())
+              try:
+                  T.update_item(Key={"k": f"{day}#{op}"}, UpdateExpression="ADD #n :one SET #e = :exp",
+                                ConditionExpression="attribute_not_exists(#n) OR #n < :max",
+                                ExpressionAttributeNames={"#n": "n", "#e": "expires_at"},
+                                ExpressionAttributeValues={":one": 1, ":max": LIMITS[op], ":exp": int(time.time()) + 172800})
+                  return True
+              except ClientError as e:
+                  if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                      return False
+                  raise
+
+          def reply(code, body):
+              return {"statusCode": code, "headers": {"content-type": "application/json"},
+                      "body": json.dumps(body, default=lambda o: o.isoformat() if hasattr(o, "isoformat") else str(o))}
+
+          def handler(event, _ctx):
+              op = (event.get("pathParameters") or {}).get("op", "")
+              if op not in LIMITS:
+                  return reply(404, {"message": "unknown operation"})
+              try:
+                  raw = event.get("body") or "{}"
+                  body = json.loads(base64.b64decode(raw) if event.get("isBase64Encoded") else raw)
+              except Exception:
+                  return reply(400, {"message": "invalid JSON"})
+              try:
+                  fn, kwargs = prep(op, body)
+              except (ValueError, KeyError, TypeError, IndexError) as e:
+                  return reply(400, {"message": f"bad request: {e}"[:160]})
+              if not allow(op):  # only valid requests count against the daily cap
+                  return reply(429, {"message": "daily limit reached for this demo, please try again tomorrow"})
+              try:
+                  r = fn(**kwargs)
+                  r.pop("ResponseMetadata", None)
+                  return reply(200, r)
+              except ClientError as e:
+                  return reply(e.response["ResponseMetadata"]["HTTPStatusCode"], {"message": e.response["Error"]["Message"][:200]})
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub ${AWS::StackName}-api
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: !Ref AllowedOrigins
+        AllowMethods: [POST]
+        AllowHeaders: [content-type]
+        MaxAge: 3600
+
+  Integration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt ProxyFunction.Arn
+      PayloadFormatVersion: "2.0"
+
+  Route:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /{op}
+      Target: !Sub integrations/${Integration}
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: $default
+      AutoDeploy: true
+      DefaultRouteSettings:
+        ThrottlingRateLimit: !Ref RateLimit
+        ThrottlingBurstLimit: !Ref BurstLimit
+
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ProxyFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*
+
+Outputs:
+  ApiUrl:
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  QuotaTableName:
+    Value: !Ref QuotaTable

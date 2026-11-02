@@ -63,13 +63,13 @@ And this Hyogo card can only be collected in Osaka. Our geocoder flagged it as a
 Ninety-eight cards wait at michi-no-eki roadside stations. Manhole cards are a road-trip game.
 
 17
-00:02:03,616 --> 00:02:16,720
-How it works: scrape the registry, geocode with Amazon Location, merge into an Apache Iceberg table on S3 with Athena, and serve a static site on Amplify. Maps and Routes run in the browser, with no backend.
+00:02:03,616 --> 00:02:20,680
+How it works: scrape the registry, geocode with Amazon Location, and merge into an Apache Iceberg table on S3 with Athena. The site is static on Amplify. The browser key can only load map tiles. Every paid call goes through a rate-limited Lambda proxy with a daily cap.
 
 18
-00:02:17,170 --> 00:02:23,242
+00:02:21,130 --> 00:02:27,202
 Each series is an Iceberg snapshot you can time-travel to. Swap the scraper, and it works for any stamp rally.
 
 19
-00:02:23,692 --> 00:02:26,116
+00:02:27,652 --> 00:02:30,076
 Manhole Pilgrim. Go find the sewers.

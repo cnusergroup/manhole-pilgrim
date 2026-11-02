@@ -1,10 +1,12 @@
-// Amazon Location Service browser API key.
-// This key is public by design: it ships to every visitor's browser. It is restricted in AWS to
-// specific Maps/Places/Routes actions and to this site's domain (referer).
-// Deploying your own copy? Replace apiKey with your own key — see README "Deploy your own copy".
+// apiKey: Amazon Location browser key for MAP TILES ONLY (geo-maps:GetTile), referer-restricted, expires 2026-12-31.
+//         It is public by design (every visitor's browser receives it) and cannot call Places or Routes.
+// proxyUrl: API Gateway + Lambda (infra/proxy.yaml) for place search, isolines and routing. The proxy holds the
+//         IAM permissions, validates input, rate-limits, and enforces a hard daily cap per operation.
+// Deploying your own copy? Replace both values; see README "Deploy your own copy".
 window.MP_CONFIG = {
   region: "ap-northeast-1",
-  apiKey: "v1.public.eyJqdGkiOiJlNjE4N2FjOC0zMjc5LTQwYjEtYWZmNS1jMGQwMmUzNTg1YTEifa49Ep6B78PQlSTwav22SYjv219ONLvGZ3zGlwso39PnE4VTz-7ViwzSXijaeXZ04CxGRiRXpxOAcoX8G9rQ67IbOW8ymdvu4gfPbRL2CpA6r5CtNRNACdgKPuSIGthFuI1HvbZouvU_cK0-qTWnHstu2oftu492Sq3nZRFqSc13ODhcBdy4AXyFawevZUTfqK7HccLrGpBJirfaQELGv8lOQa2LbdtHkq6J1lUcBo8jA4zmjLbSwvwXd68r2b99bkH9vO_zzz-cXpwjsiFvOKA6emhUcL8-RTgHk0GITkLbkTza7tJFRFHLoUzvZVd0N1dJcmsaEspTXwXEwofDPdU.YTAwN2QzYTQtMjA4OC00M2Q5LWE5ZTUtYjk4Y2U1YWUxY2Uy",
+  apiKey: "v1.public.eyJqdGkiOiJjNWI3NWJhMC04Y2VmLTQwMGEtYmQ0Mi02OTkyYTE2N2Y5ZDAifZH4K1BNFkVKfIEpX0140aN081NGuIKE0dWJDxbBZSM6PCrz6QHjvUN6k4O-yKGAYm7m54GpK315mXox3OT35VFEs7RVmdGxhiHM-UdfL7A_48r54m3TBA-Y0U1QqUWo6i_4jg153OyU_OtP1l1xWmQ4GZn27DMMGEWt8b_mcpHvvuptCJk1BeETXg88XHl_2I8uEjAEEkKd_p3FFho2GN_owku9cTRQMRdVgF20t_T9WxaLdWJIHYX0CyfKRHBVAy9ruwvjLdg4Gt-miUV-s7QB2uxe6_Tod5OWaOzHqkY0GHKUu_P_8gUHZ1DeG2Y6bEycnIbszLe2nBFSFWdaITc.YTAwN2QzYTQtMjA4OC00M2Q5LWE5ZTUtYjk4Y2U1YWUxY2Uy",
+  proxyUrl: "https://lbhaxekem4.execute-api.ap-northeast-1.amazonaws.com",
   mapStyle: "Monochrome",
   colorScheme: "Dark",
   dataVersion: "2026-11-02b", // bump after regenerating data to bypass CDN / browser caches

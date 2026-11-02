@@ -51,7 +51,7 @@
       "text": "Ninety-eight cards wait at michi-no-eki roadside stations. Manhole cards are a road-trip game.",
       "caption": "<b>98 cards</b> wait at michi-no-eki roadside stations. Manhole cards are a <b>road-trip game</b>." },
     { "id": "s17", "scene": "arch",
-      "text": "How it works: scrape the registry, geocode with Amazon Location, merge into an Apache Iceberg table on S3 with Athena, and serve a static site on Amplify. Maps and Routes run in the browser, with no backend.",
+      "text": "How it works: scrape the registry, geocode with Amazon Location, and merge into an Apache Iceberg table on S3 with Athena. The site is static on Amplify. The browser key can only load map tiles. Every paid call goes through a rate-limited Lambda proxy with a daily cap.",
       "caption": "" },
     { "id": "s18", "scene": "iceberg",
       "text": "Each series is an Iceberg snapshot you can time-travel to. Swap the scraper, and it works for any stamp rally.",
