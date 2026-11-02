@@ -123,23 +123,100 @@ To preview the tour with sound in the browser, open `/?demo=1&voice=1`.
 
 Nothing here is specific to manholes. The same pipeline fits any "collect them in person" dataset that ships as addresses and changes over time: 御朱印 (temple stamps), 駅スタンプ (station stamps), michi-no-eki stamp rallies, dam cards (ダムカード), bridge cards, or brewery passports anywhere. Swap `scrape.py` and `parse.py` for your source. Everything from geocoding onward stays as it is.
 
-```bash
-pip install requests beautifulsoup4 boto3
-python pipeline/scrape.py              # cache source pages (polite, once)
-python pipeline/parse.py               # → data/cards.json
-python pipeline/geocode.py             # → data/cards_geo.json (Amazon Location Places, cached)
-python pipeline/build_geojson.py       # → data/cards_enriched.jsonl (+ web/data/cards.geojson)
-python pipeline/lakehouse.py --backfill  # first run: Iceberg table, 1 commit per series, export
-python pipeline/lakehouse.py           # later runs: single MERGE + export
-python pipeline/time_travel.py         # demo Iceberg time travel
+## Deploy your own copy
 
-# local preview
-python -m http.server 8765 --directory web
-# deploy (Amplify manual deployment)
-powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1
+There are two paths. **A** puts the map online in about 10 minutes, using the data already in `web/data/`. **B** rebuilds the dataset from the source registry through Amazon Location and Iceberg.
+
+### Prerequisites
+
+- An AWS account, and [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configured with credentials (`aws sts get-caller-identity` works)
+- Python 3.10+
+- Region: everything is set up for **`ap-northeast-1` (Tokyo)**. To use another region, change `region` in `web/config.js` and `REGION` in `pipeline/geocode.py` and `pipeline/lakehouse.py`.
+- Path B also needs `pip install requests beautifulsoup4 boto3`. The video tooling needs `ffmpeg`.
+
+Your IAM identity needs these permissions:
+
+| Path | Actions |
+|---|---|
+| A | `amplify:*` on your app, `geo:CreateKey`, `geo:UpdateKey`, `geo:DescribeKey` |
+| B (additionally) | `geo-places:Geocode`, `geo-places:SearchText`; `s3:*` on the lake bucket; `athena:StartQueryExecution`, `athena:GetQueryExecution`; `glue:*Database*`, `glue:*Table*`, `glue:*Partition*` |
+| Video (optional) | `polly:SynthesizeSpeech` |
+
+### A. Deploy the map (uses the committed data)
+
+```bash
+git clone https://github.com/cnusergroup/manhole-pilgrim && cd manhole-pilgrim
+export AWS_REGION=ap-northeast-1
+
+# 1. Create an Amplify Hosting app and branch (manual deployments, no Git connection)
+APP_ID=$(aws amplify create-app --name manhole-pilgrim --platform WEB --query app.appId --output text)
+aws amplify create-branch --app-id $APP_ID --branch-name main --stage PRODUCTION
+echo "Your site will be https://main.$APP_ID.amplifyapp.com"
+
+# 2. Create a browser API key for Amazon Location, restricted to the actions the app uses and your domain
+aws location create-key --key-name manhole-pilgrim-web --no-expiry --restrictions "{
+  \"AllowActions\": [\"geo-maps:GetTile\", \"geo-places:SearchText\",
+    \"geo-routes:CalculateIsolines\", \"geo-routes:CalculateRoutes\",
+    \"geo-routes:CalculateRouteMatrix\", \"geo-routes:OptimizeWaypoints\"],
+  \"AllowResources\": [\"arn:aws:geo-maps:$AWS_REGION::provider/default\",
+    \"arn:aws:geo-places:$AWS_REGION::provider/default\",
+    \"arn:aws:geo-routes:$AWS_REGION::provider/default\"],
+  \"AllowReferers\": [\"https://main.$APP_ID.amplifyapp.com/*\", \"http://localhost:8765/*\"]
+}" --query Key --output text
 ```
 
-You need AWS credentials with Location (Places/Routes), S3, Athena, and Glue permissions, plus your own Amazon Location API key in `web/config.js`. The key needs `geo-maps:GetTile`, `geo-places:SearchText`, and `geo-routes:CalculateIsolines|CalculateRoutes|CalculateRouteMatrix|OptimizeWaypoints`, restricted to your domain.
+3. Paste the printed key into `apiKey` in **`web/config.js`**. Also point the "Source" link in `web/index.html` at your fork.
+4. Preview it locally. The key allows `localhost:8765`.
+   ```bash
+   python -m http.server 8765 --directory web    # open http://localhost:8765
+   ```
+5. Deploy:
+   ```bash
+   # Windows PowerShell
+   powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 -AppId <APP_ID>
+
+   # macOS / Linux
+   (cd web && zip -qr ../site.zip .)
+   read JOB URL <<< $(aws amplify create-deployment --app-id $APP_ID --branch-name main --query "[jobId,zipUploadUrl]" --output text)
+   curl -s -T site.zip -H "Content-Type: application/zip" "$URL"
+   aws amplify start-deployment --app-id $APP_ID --branch-name main --job-id $JOB
+   ```
+
+Open `https://main.<APP_ID>.amplifyapp.com`. If the basemap is blank, check that the key's referer matches your URL exactly, including the trailing `/*`.
+
+### B. Rebuild the data (Amazon Location + Iceberg on S3)
+
+```bash
+python pipeline/scrape.py               # caches the 47 source pages in data/raw (1.5 s between requests)
+python pipeline/parse.py                # → data/cards.json
+python pipeline/geocode.py              # → data/cards_geo.json; Amazon Location Places, cached in data/geocode_cache.json
+python pipeline/build_geojson.py        # → data/cards_enriched.jsonl (+ web/data/cards.geojson)
+python pipeline/lakehouse.py --backfill # creates bucket manhole-pilgrim-lake-<account-id>, Glue DB + Iceberg table,
+                                        #   one MERGE commit per series, then exports web/data/cards.geojson + lake.json
+python pipeline/time_travel.py          # optional: prints the card count at a few snapshots
+```
+
+To refresh later, run `scrape → parse → geocode → build_geojson`, then `python pipeline/lakehouse.py` without `--backfill` for one MERGE. Bump `dataVersion` in `web/config.js` and redeploy.
+
+To adapt the pipeline to another dataset, replace `scrape.py` and `parse.py`. Everything downstream only expects `data/cards.json` records with a `pref`, `municipality`, `address`, `place_name`, `series`, and `id`.
+
+### Re-make the demo video (optional)
+
+See [How the demo video is made](#how-the-demo-video-is-made). In short: edit `video/narration.json`, run `python scripts/make_voice.py`, record `/?demo=1&wait=1`, then run `python scripts/compose_video.py <recording.mp4>`.
+
+### Cost and clean-up
+
+Expect a few US dollars at hackathon scale. Geocoding about 1,600 queries with `IntendedUse=Storage` is the largest one-off. After that, map tiles and routing are charged per request by visitors. Athena scans are a few MB. Set an [AWS Budget](https://console.aws.amazon.com/billing/home#/budgets) alert if you leave the site up.
+
+```bash
+aws amplify delete-app --app-id $APP_ID
+aws location delete-key --key-name manhole-pilgrim-web --force-delete
+# path B only:
+aws glue delete-table --database-name manhole_pilgrim --name cards
+aws glue delete-table --database-name manhole_pilgrim --name raw_cards
+aws glue delete-database --name manhole_pilgrim
+aws s3 rb s3://manhole-pilgrim-lake-$(aws sts get-caller-identity --query Account --output text) --force
+```
 
 ## Project layout
 
@@ -153,7 +230,9 @@ docs/       screenshots
 
 ## Data, licensing, and limitations
 
-- Card listings come from the official GKP registry. **Card images are not copied.** The popup displays them from the official server and links back to the official page. All card designs are © their issuing municipalities and GKP.
+- Card listings come from the official GKP registry. **Card images are not copied into this repo.** The live popup displays them from the official server and links back to the official page, and card art is blurred in the README screenshots. All card designs are © their issuing municipalities and GKP.
+- `web/data/cards.geojson` holds factual listing data (place names, public addresses, opening hours, and links to the official images), plus coordinates we computed. It contains no personal data.
+- The Amazon Location API key in `web/config.js` is a public browser key, restricted by action, resource, and referer. Use your own key for your own deployment.
 - Raw scraped pages and intermediate files are not committed (`.gitignore`). Re-create them with the pipeline.
 - Distribution details (hours, stock) change. Always check the official link before travelling.
 - Place types (sewage plant, tourist info, michi-no-eki, …) come from a keyword classifier on place names, plus Amazon Location POI categories. Around 13 % are "Other".

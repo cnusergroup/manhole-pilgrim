@@ -1,12 +1,14 @@
 # Deploy web/ to AWS Amplify Hosting (manual zip deployment, no Git connection needed).
-# Usage: powershell -ExecutionPolicy Bypass -File scripts\deploy.ps1
+# Usage: powershell -ExecutionPolicy Bypass -File scripts\deploy.ps1 -AppId <your-amplify-app-id>
+#    or: set $env:MP_AMPLIFY_APP_ID once, then run without -AppId
 param(
-  [string]$AppId = "d1y4wxk0wltj16",
+  [string]$AppId = $env:MP_AMPLIFY_APP_ID,
   [string]$Branch = "main",
-  [string]$Region = "ap-northeast-1"
+  [string]$Region = $(if ($env:AWS_REGION) { $env:AWS_REGION } else { "ap-northeast-1" })
 )
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+if (-not $AppId) { throw "Pass -AppId <amplify-app-id> or set MP_AMPLIFY_APP_ID (see README: Deploy your own copy)." }
 $root = Split-Path -Parent $PSScriptRoot
 $zip = Join-Path $env:TEMP "manhole-pilgrim-web.zip"
 if (Test-Path $zip) { Remove-Item $zip }
